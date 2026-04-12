@@ -1,0 +1,212 @@
+import type { UnitCard } from "@cards/shared";
+
+export const units: UnitCard[] = [
+  // ── Lords (1 per weapon type, must include exactly 1 in deck) ──
+  {
+    type: "unit",
+    id: "lord-marth",
+    name: "Marth",
+    class: "Lord",
+    attackType: "sword",
+    maxHp: 22,
+    stats: { hp: 22, str: 9, mag: 0, def: 6, res: 5, spd: 10 },
+    tags: ["infantry"],
+    effects: [],
+    cost: 3,
+    isLord: true,
+    flavor: "The exiled prince who would unite nations.",
+  },
+  {
+    type: "unit",
+    id: "lord-ephraim",
+    name: "Ephraim",
+    class: "Lord",
+    attackType: "lance",
+    maxHp: 24,
+    stats: { hp: 24, str: 11, mag: 0, def: 7, res: 3, spd: 8 },
+    tags: ["infantry"],
+    effects: [],
+    cost: 4,
+    isLord: true,
+    flavor: "He does not pick fights he cannot win.",
+  },
+
+  // ── Sword: Swordmaster (double attack, glass cannon) ──
+  {
+    type: "unit",
+    id: "swordmaster-karel",
+    name: "Karel",
+    class: "Swordmaster",
+    attackType: "sword",
+    maxHp: 16,
+    stats: { hp: 16, str: 10, mag: 0, def: 3, res: 4, spd: 14 },
+    tags: ["infantry"],
+    effects: [{ kind: "double_attack" }],
+    cost: 4,
+    isLord: false,
+    flavor: "The Sword Demon. His blade strikes twice.",
+  },
+
+  // ── Sword: Thief (draw cards on deploy) ──
+  {
+    type: "unit",
+    id: "thief-matthew",
+    name: "Matthew",
+    class: "Thief",
+    attackType: "sword",
+    maxHp: 14,
+    stats: { hp: 14, str: 6, mag: 0, def: 3, res: 2, spd: 12 },
+    tags: ["infantry"],
+    effects: [{ kind: "draw_cards", amount: 1 }],
+    cost: 2,
+    isLord: false,
+    flavor: "Steals secrets before steel.",
+  },
+
+  // ── Axe: Berserker (huge power, negative DEF) ──
+  {
+    type: "unit",
+    id: "berserker-hawkeye",
+    name: "Hawkeye",
+    class: "Berserker",
+    attackType: "axe",
+    maxHp: 28,
+    stats: { hp: 28, str: 14, mag: 0, def: 2, res: 3, spd: 6 },
+    tags: ["infantry"],
+    effects: [],
+    cost: 4,
+    isLord: false,
+    flavor: "Guardian of the desert. Every swing is final.",
+  },
+
+  // ── Lance: Knight (armored wall, very slow) ──
+  {
+    type: "unit",
+    id: "knight-oswin",
+    name: "Oswin",
+    class: "Knight",
+    attackType: "lance",
+    maxHp: 30,
+    stats: { hp: 30, str: 10, mag: 0, def: 14, res: 2, spd: 2 },
+    tags: ["armored"],
+    effects: [],
+    cost: 4,
+    isLord: false,
+    flavor: "A wall of steel. Nothing passes his guard.",
+  },
+
+  // ── Bow: Archer (ranged, anti-flyer) ──
+  {
+    type: "unit",
+    id: "archer-wil",
+    name: "Wil",
+    class: "Archer",
+    attackType: "bow",
+    maxHp: 18,
+    stats: { hp: 18, str: 9, mag: 0, def: 4, res: 3, spd: 8 },
+    tags: ["infantry"],
+    effects: [
+      { kind: "ranged" },
+      { kind: "damage_multiplier_vs_tag", tag: "flying", multiplier: 3 },
+    ],
+    cost: 3,
+    isLord: false,
+    flavor: "Grounds wings with a single arrow.",
+  },
+
+  // ── Flying: Pegasus Knight (fast, high RES, vulnerable to bows) ──
+  {
+    type: "unit",
+    id: "pegasus-florina",
+    name: "Florina",
+    class: "Pegasus Knight",
+    attackType: "lance",
+    maxHp: 17,
+    stats: { hp: 17, str: 7, mag: 0, def: 4, res: 9, spd: 11 },
+    tags: ["flying"],
+    effects: [{ kind: "flying" }],
+    cost: 3,
+    isLord: false,
+    flavor: "Shy on the ground, fearless in the sky.",
+  },
+
+  // ── Flying: Wyvern (tanky flyer, slow) ──
+  {
+    type: "unit",
+    id: "wyvern-heath",
+    name: "Heath",
+    class: "Wyvern Rider",
+    attackType: "lance",
+    maxHp: 24,
+    stats: { hp: 24, str: 11, mag: 0, def: 8, res: 1, spd: 6 },
+    tags: ["flying"],
+    effects: [{ kind: "flying" }],
+    cost: 4,
+    isLord: false,
+    flavor: "A deserter who rides against his homeland.",
+  },
+
+  // ── Mage: Fire (high power, fragile) ──
+  {
+    type: "unit",
+    id: "mage-lilina",
+    name: "Lilina",
+    class: "Mage",
+    attackType: "fire",
+    maxHp: 14,
+    stats: { hp: 14, str: 0, mag: 13, def: 2, res: 7, spd: 6 },
+    tags: ["infantry"],
+    effects: [{ kind: "ranged" }],
+    cost: 3,
+    isLord: false,
+    flavor: "Her flames rival legends.",
+  },
+
+  // ── Mage: Wind (fast, anti-flyer tome) ──
+  {
+    type: "unit",
+    id: "mage-nino",
+    name: "Nino",
+    class: "Mage",
+    attackType: "wind",
+    maxHp: 13,
+    stats: { hp: 13, str: 0, mag: 11, def: 2, res: 8, spd: 12 },
+    tags: ["infantry"],
+    effects: [{ kind: "ranged" }],
+    cost: 3,
+    isLord: false,
+    flavor: "She does her best. And her best is devastating.",
+  },
+
+  // ── Mage: Thunder (balanced) ──
+  {
+    type: "unit",
+    id: "mage-lugh",
+    name: "Lugh",
+    class: "Mage",
+    attackType: "thunder",
+    maxHp: 15,
+    stats: { hp: 15, str: 0, mag: 12, def: 3, res: 7, spd: 9 },
+    tags: ["infantry"],
+    effects: [{ kind: "ranged" }],
+    cost: 3,
+    isLord: false,
+    flavor: "Sparks in his hands and hope in his heart.",
+  },
+
+  // ── Healer: Cleric (heal adjacent, weak in combat) ──
+  {
+    type: "unit",
+    id: "cleric-serra",
+    name: "Serra",
+    class: "Cleric",
+    attackType: "fire",
+    maxHp: 13,
+    stats: { hp: 13, str: 0, mag: 4, def: 2, res: 10, spd: 7 },
+    tags: ["infantry"],
+    effects: [{ kind: "heal_adjacent", amount: 5 }],
+    cost: 2,
+    isLord: false,
+    flavor: "The reason your units survive.",
+  },
+];

@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@theme {
+  /* Card type colors */
+  --color-sword: #dc2626;
+  --color-axe: #16a34a;
+  --color-lance: #2563eb;
+  --color-bow: #a16207;
+  --color-fire: #ea580c;
+  --color-wind: #059669;
+  --color-thunder: #7c3aed;
+
+  /* Rarity */
+  --color-common: #6b7280;
+  --color-uncommon: #22c55e;
+  --color-rare: #3b82f6;
+  --color-mythic: #f59e0b;
+
+  /* UI */
+  --color-field: #1e3a2f;
+  --color-field-slot: #2d5a45;
+  --color-hand: #1a1a2e;
+  --color-surface: #0f1015;
+  --color-surface-light: #1a1b22;
+}
+
+body {
+  margin: 0;
+  background: var(--color-surface);
+  color: #e5e7eb;
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Animations */
+@keyframes fadeUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+  50% { box-shadow: 0 0 12px 2px rgba(245, 158, 11, 0.3); }
+}

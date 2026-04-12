@@ -1,0 +1,70 @@
+import type { Card, FieldPosition, GameState, Player } from "./types.js";
+
+// ── Client → Server events ──
+
+export interface AuthPayload {
+  /** Client-generated UUID, persists across sessions in localStorage. */
+  playerId: string;
+  /** User-chosen display name (optional label). */
+  displayName: string;
+}
+
+export interface ClientToServerEvents {
+  /** Identify the player. Must be sent before any other event. */
+  "auth": (payload: AuthPayload) => void;
+  /** Join the matchmaking queue with a deck */
+  "queue:join": (deck: Card[]) => void;
+  /** Leave the matchmaking queue */
+  "queue:leave": () => void;
+  /** Deploy a card from hand */
+  "game:deploy": (handIndex: number, target?: FieldPosition) => void;
+  /** Attack with a unit */
+  "game:attack": (from: FieldPosition, to: FieldPosition) => void;
+  /** End current turn */
+  "game:end-turn": () => void;
+}
+
+// ── Server → Client events ──
+
+/** A sanitized view of the game for one player (hides opponent's hand/deck) */
+export interface GameView {
+  you: Player;
+  opponent: {
+    id: string;
+    name: string;
+    field: Player["field"];
+    handCount: number;
+    deckCount: number;
+    discardCount: number;
+    energy: number;
+    maxEnergy: number;
+  };
+  isYourTurn: boolean;
+  turnNumber: number;
+  winner: string | null;
+}
+
+export interface ServerToClientEvents {
+  /** Auth accepted. Safe to send queue/game events. */
+  "auth:ok": () => void;
+  /** Auth failed (malformed payload or duplicate session). */
+  "auth:error": (message: string) => void;
+  /** Queued for matchmaking */
+  "queue:joined": (data: { position: number }) => void;
+  /** Match found, game starting */
+  "game:start": (view: GameView) => void;
+  /** Game state updated after any action */
+  "game:update": (view: GameView) => void;
+  /** An action failed */
+  "game:error": (message: string) => void;
+  /** Action result for feedback (damage dealt, etc.) */
+  "game:action-result": (result: {
+    type: "deploy" | "attack" | "end-turn";
+    damage?: number;
+    targetPos?: FieldPosition;
+  }) => void;
+  /** Game is over */
+  "game:over": (data: { winner: string; turnCount: number }) => void;
+  /** Queue position updated */
+  "queue:update": (data: { position: number }) => void;
+}
