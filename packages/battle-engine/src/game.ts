@@ -300,6 +300,117 @@ export function canAttack(
   );
 }
 
+export interface CombatPreview {
+  /** Damage the attacker would deal. */
+  out: number;
+  /** Damage the defender would deal back in counter (0 if no counter). */
+  in: number;
+  /** Would the initial attack KO the defender? */
+  attackerKOs: boolean;
+  /** Would the counter KO the attacker? (Always false when attackerKOs.) */
+  counterKOs: boolean;
+  /** True when the defender can reach back at all (and would therefore counter). */
+  counters: boolean;
+}
+
+/**
+ * Project the result of an attack without mutating state — used to show
+ * tactical previews (expected damage, KO signals) in the UI before the
+ * player commits.
+ *
+ * Returns null if the attack isn't legal (no attacker, no defender, or
+ * out of reach). Takes fields + supports explicitly so it works from a
+ * GameState on the server/AI and from a partial GameView on an online
+ * client (pass empty arrays when opponent supports are hidden).
+ */
+export function previewCombat(
+  attackerField: Field,
+  attackerPos: FieldPosition,
+  defenderField: Field,
+  defenderPos: FieldPosition,
+  attackerSupports: SupportCard[],
+  defenderSupports: SupportCard[],
+): CombatPreview | null {
+  const atkSlot = getSlot(attackerField, attackerPos);
+  const defSlot = getSlot(defenderField, defenderPos);
+  if (!atkSlot.unit || !defSlot.unit) return null;
+
+  if (!canReach(
+    attackerField,
+    attackerPos,
+    defenderField,
+    defenderPos,
+    isRanged(atkSlot.unit, atkSlot.weapon),
+    isFlying(atkSlot.unit, atkSlot.weapon),
+  )) {
+    return null;
+  }
+
+  const outgoing = calculateDamage(
+    atkSlot.unit,
+    atkSlot.weapon,
+    defSlot.unit,
+    defSlot.weapon,
+    {
+      attackerSupports,
+      defenderSupports,
+      isActiveSupport: (support, side) =>
+        isSupportPairActive(side === "attacker" ? attackerField : defenderField, support),
+    },
+  );
+  const attackerKOs = outgoing.totalDamage >= defSlot.unit.stats.hp;
+
+  if (attackerKOs) {
+    return {
+      out: outgoing.totalDamage,
+      in: 0,
+      attackerKOs: true,
+      counterKOs: false,
+      counters: false,
+    };
+  }
+
+  const canCounter = canReach(
+    defenderField,
+    defenderPos,
+    attackerField,
+    attackerPos,
+    isRanged(defSlot.unit, defSlot.weapon),
+    isFlying(defSlot.unit, defSlot.weapon),
+  );
+  if (!canCounter) {
+    return {
+      out: outgoing.totalDamage,
+      in: 0,
+      attackerKOs: false,
+      counterKOs: false,
+      counters: false,
+    };
+  }
+
+  const counter = calculateDamage(
+    defSlot.unit,
+    defSlot.weapon,
+    atkSlot.unit,
+    atkSlot.weapon,
+    {
+      attackerSupports: defenderSupports,
+      defenderSupports: attackerSupports,
+      isActiveSupport: (support, side) =>
+        isSupportPairActive(side === "attacker" ? defenderField : attackerField, support),
+    },
+  );
+  const counterKOs = counter.totalDamage >= atkSlot.unit.stats.hp;
+
+  return {
+    out: outgoing.totalDamage,
+    in: counter.totalDamage,
+    attackerKOs: false,
+    counterKOs,
+    counters: true,
+  };
+}
+
 /** Unit is ranged if it attacks with a bow, or has a ranged effect on itself or its weapon. */
 function isRanged(unit: UnitCard, weapon: { attackType: string; effects: Effect[] } | null): boolean {
   if (unit.attackType === "bow") return true;

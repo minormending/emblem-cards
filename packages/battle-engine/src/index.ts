@@ -44,9 +44,11 @@ export {
   drawPhase,
   attackAction,
   canAttack,
+  previewCombat,
   endTurn,
   isSupportPairActive,
 } from "./game.js";
+export type { CombatPreview } from "./game.js";
 
 // ── Deploy ──
 export { deployCard } from "./deploy.js";

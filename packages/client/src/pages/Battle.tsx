@@ -1,5 +1,5 @@
-import type { FieldRow, FieldCol } from "@cards/shared";
-import { getSlot } from "@cards/battle-engine";
+import type { FieldRow, FieldCol, SupportCard } from "@cards/shared";
+import { getSlot, opposingPlayer } from "@cards/battle-engine";
 import {
   useGameStore,
   getCurrentPlayer,
@@ -115,6 +115,8 @@ export function Battle() {
             selectedAttackerPos={selectedAttackerPos}
             lastHitPos={lastHitPos}
             ownField={me.field}
+            ownSupports={me.activeSupportCards}
+            opponentSupports={opponentSupports(store)}
             onClick={handleEnemySlotClick}
           />
           <FieldDivider />
@@ -131,6 +133,8 @@ export function Battle() {
             selectedAttackerPos={selectedAttackerPos}
             lastHitPos={lastHitPos}
             ownField={me.field}
+            ownSupports={me.activeSupportCards}
+            opponentSupports={opponentSupports(store)}
             onClick={handleOwnSlotClick}
           />
           <OwnInfo deckCount={me.deck.length} discardCount={me.discardPile.length} />
@@ -275,4 +279,19 @@ function isFieldEmpty(field: Parameters<typeof getSlot>[0]): boolean {
   const rows: FieldRow[] = ["front", "back"];
   const cols: FieldCol[] = [0, 1, 2];
   return rows.every((row) => cols.every((col) => getSlot(field, { row, col }).unit === null));
+}
+
+/**
+ * Opponent's active supports from whichever source the current mode exposes.
+ * Local/AI modes have full state; online mode currently hides them, so
+ * preview damage omits opponent pair-bonuses in that case.
+ */
+function opponentSupports(store: ReturnType<typeof useGameStore.getState>): SupportCard[] {
+  if ((store.mode === "local" || store.mode === "ai") && store.gameState) {
+    const opp = store.mode === "ai"
+      ? store.gameState.players[1]
+      : opposingPlayer(store.gameState);
+    return opp.activeSupportCards;
+  }
+  return [];
 }

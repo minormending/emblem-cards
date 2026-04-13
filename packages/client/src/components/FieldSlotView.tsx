@@ -1,4 +1,5 @@
 import type { FieldSlot, FieldPosition } from "@cards/shared";
+import type { CombatPreview } from "@cards/battle-engine";
 import { attackTypeBorders } from "../lib/colors";
 import { CardArtMini } from "./CardArt";
 import { CombatFx } from "./battle/CombatFx";
@@ -13,6 +14,8 @@ interface FieldSlotViewProps {
   isAttackTarget: boolean;
   onClick: () => void;
   lastHit?: boolean;
+  /** Damage preview when this slot is a legal attack target. */
+  attackPreview?: CombatPreview | null;
 }
 
 export function FieldSlotView({
@@ -24,6 +27,7 @@ export function FieldSlotView({
   isAttackTarget,
   onClick,
   lastHit,
+  attackPreview,
 }: FieldSlotViewProps) {
   const { unit, weapon, hasActed } = slot;
   const border = unit ? attackTypeBorders[unit.attackType] : "border-white/10";
@@ -148,8 +152,119 @@ export function FieldSlotView({
         </>
       )}
 
+      {attackPreview && <AttackPreviewBadge preview={attackPreview} />}
+
       <CombatFx side={isOwn ? "own" : "enemy"} pos={pos} />
     </div>
+  );
+}
+
+/**
+ * Tactical preview shown on each reachable enemy slot while an attacker is
+ * selected. A split pill:
+ *   ┌───────┬───────┐
+ *   │ ↑ OUT │ ↓ IN  │   IN half hidden when no counter
+ *   └───────┴───────┘
+ *
+ * Color tells the story of the exchange at a glance; a skull marks lethal
+ * outcomes and a soft pulse draws the eye when the move would KO you.
+ */
+function AttackPreviewBadge({ preview }: { preview: CombatPreview }) {
+  const { out, in: incoming, attackerKOs, counterKOs, counters } = preview;
+
+  // Outcome → gradient class + dominant color
+  let outTone: string;
+  let inTone: string;
+  let ringTone: string;
+  let animate = "";
+
+  if (attackerKOs) {
+    // Clean kill — golden victory, subtle breathing animation
+    outTone = "bg-gradient-to-b from-amber-300 to-amber-500 text-gray-950";
+    inTone = "bg-gradient-to-b from-emerald-400 to-emerald-600 text-white";
+    ringTone = "ring-amber-300/70";
+    animate = "animate-pulse";
+  } else if (counterKOs) {
+    // Lethal counter — strong red warning pulse
+    outTone = "bg-gradient-to-b from-amber-400 to-amber-600 text-gray-950";
+    inTone = "bg-gradient-to-b from-red-500 to-red-700 text-white";
+    ringTone = "ring-red-400/80";
+    animate = "animate-pulse";
+  } else if (counters) {
+    // Both survive — trade
+    outTone = "bg-gradient-to-b from-emerald-400 to-emerald-600 text-white";
+    inTone = "bg-gradient-to-b from-red-400 to-red-600 text-white";
+    ringTone = "ring-white/30";
+  } else {
+    // Free hit — no counter
+    outTone = "bg-gradient-to-b from-emerald-400 to-emerald-600 text-white";
+    inTone = "";
+    ringTone = "ring-emerald-300/60";
+  }
+
+  const titleText = attackerKOs
+    ? `KO — you deal ${out}, no counter`
+    : counterKOs
+      ? `LETHAL — you deal ${out}, counter hits ${incoming}`
+      : counters
+        ? `Trade — you deal ${out}, take ${incoming}`
+        : `Free hit — you deal ${out}, no counter`;
+
+  return (
+    <div
+      className={`absolute top-1 left-1/2 -translate-x-1/2 z-10 flex rounded-lg overflow-hidden shadow-lg ring-2 ${ringTone} ${animate} backdrop-blur-sm`}
+      title={titleText}
+    >
+      {/* Outgoing — your hit */}
+      <div className={`flex items-center gap-0.5 px-1.5 py-0.5 text-[12px] font-black tabular-nums ${outTone}`}>
+        <Chevron direction="up" />
+        <span className="leading-none drop-shadow-sm">{out}</span>
+        {attackerKOs && <SkullIcon />}
+      </div>
+
+      {/* Divider slash — only if both halves visible */}
+      {counters && <div className="w-px bg-black/40" />}
+
+      {/* Incoming — counter */}
+      {counters && (
+        <div className={`flex items-center gap-0.5 px-1.5 py-0.5 text-[12px] font-black tabular-nums ${inTone}`}>
+          <Chevron direction="down" />
+          <span className="leading-none drop-shadow-sm">{incoming}</span>
+          {counterKOs && <SkullIcon />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Chevron({ direction }: { direction: "up" | "down" }) {
+  return (
+    <svg
+      width="9"
+      height="9"
+      viewBox="0 0 10 10"
+      className={`drop-shadow ${direction === "down" ? "rotate-180" : ""}`}
+      aria-hidden
+    >
+      <path d="M5 1 L9 8 L1 8 Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function SkullIcon() {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      className="drop-shadow"
+      aria-hidden
+    >
+      <circle cx="5" cy="4" r="3" fill="currentColor" />
+      <rect x="3" y="6" width="4" height="2" fill="currentColor" />
+      <circle cx="3.7" cy="4" r="0.7" fill="rgba(0,0,0,0.5)" />
+      <circle cx="6.3" cy="4" r="0.7" fill="rgba(0,0,0,0.5)" />
+    </svg>
   );
 }
 

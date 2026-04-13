@@ -1,5 +1,6 @@
-import type { FieldPosition, FieldRow, FieldCol, Field } from "@cards/shared";
-import { getSlot, canAttack } from "@cards/battle-engine";
+import type { FieldPosition, FieldRow, FieldCol, Field, SupportCard } from "@cards/shared";
+import { getSlot, canAttack, previewCombat } from "@cards/battle-engine";
+import type { CombatPreview } from "@cards/battle-engine";
 import { FieldSlotView } from "../FieldSlotView";
 
 const ROWS: FieldRow[] = ["front", "back"];
@@ -22,6 +23,14 @@ interface FieldGridProps {
    * defender slots the selected attacker can legally reach.
    */
   ownField: Field;
+  /** Own player's active supports — feeds the damage preview. */
+  ownSupports: SupportCard[];
+  /**
+   * Opponent's active supports. Empty array in online mode (server view
+   * doesn't expose them) — preview will be a slight underestimate in that
+   * case but still useful.
+   */
+  opponentSupports: SupportCard[];
   onClick: (pos: FieldPosition) => void;
 }
 
@@ -38,6 +47,8 @@ export function FieldGrid({
   selectedHandIndex,
   lastHitPos,
   ownField,
+  ownSupports,
+  opponentSupports,
   onClick,
 }: FieldGridProps) {
   const rows = flipped ? [...ROWS].reverse() : ROWS;
@@ -55,13 +66,27 @@ export function FieldGrid({
               selectedAttackerPos?.row === row &&
               selectedAttackerPos?.col === col;
             const isDeployTarget = isOwn && selectedHandIndex !== null;
-            const isAttackTarget =
+            const reachable =
               !isOwn &&
               selectedAttackerPos !== null &&
               slot.unit !== null &&
               canAttack(ownField, selectedAttackerPos, field, pos);
+            const isAttackTarget = reachable;
             const wasHit =
               !isOwn && lastHitPos?.row === row && lastHitPos?.col === col;
+
+            // Preview on the enemy slot under the selected attacker.
+            let attackPreview: CombatPreview | null = null;
+            if (reachable && selectedAttackerPos) {
+              attackPreview = previewCombat(
+                ownField,
+                selectedAttackerPos,
+                field,
+                pos,
+                ownSupports,
+                opponentSupports,
+              );
+            }
 
             return (
               <FieldSlotView
@@ -73,6 +98,7 @@ export function FieldGrid({
                 isDeployTarget={isDeployTarget}
                 isAttackTarget={isAttackTarget}
                 lastHit={wasHit}
+                attackPreview={attackPreview}
                 onClick={() => onClick(pos)}
               />
             );
