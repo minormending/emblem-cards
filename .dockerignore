@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/build
+**/.turbo
+**/.vite
+**/coverage
+**/.DS_Store
+.git
+.github
+.vscode
+.idea
+*.log
+deploy
+docs

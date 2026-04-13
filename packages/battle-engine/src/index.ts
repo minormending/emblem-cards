@@ -43,6 +43,7 @@ export {
   createGame,
   drawPhase,
   attackAction,
+  canAttack,
   endTurn,
   isSupportPairActive,
 } from "./game.js";

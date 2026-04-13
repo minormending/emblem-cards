@@ -1,31 +1,48 @@
 import type { Card, FieldPosition } from "@cards/shared";
 import { DECK_SIZE, MAX_CARD_COPIES } from "@cards/shared";
+import { getCardById } from "@cards/card-engine";
 
 /**
- * Validate a submitted deck. Returns error message or null if the deck is legal.
- * The server re-validates to prevent clients from submitting illegal decks.
+ * Validate a submitted deck. Returns { error } with a message or { cards }
+ * with the canonical card objects on success.
+ *
+ * Trust no client: every submitted card id is resolved to the authoritative
+ * card data from card-engine. A client that forges stats or invents ids
+ * gets rejected; a client with a legal id set gets the real cards even if
+ * they tried to send doctored copies.
  */
-export function validateDeck(deck: unknown): string | null {
-  if (!Array.isArray(deck)) return "Deck must be an array";
-  if (deck.length !== DECK_SIZE) return `Deck must be exactly ${DECK_SIZE} cards`;
+export type DeckValidation =
+  | { ok: true; cards: Card[] }
+  | { ok: false; error: string };
+
+export function validateDeck(deck: unknown): DeckValidation {
+  if (!Array.isArray(deck)) return { ok: false, error: "Deck must be an array" };
+  if (deck.length !== DECK_SIZE) {
+    return { ok: false, error: `Deck must be exactly ${DECK_SIZE} cards` };
+  }
 
   let lordCount = 0;
   const counts = new Map<string, number>();
+  const canonical: Card[] = [];
 
-  for (const card of deck as Card[]) {
-    if (!card || typeof card !== "object") return "Invalid card in deck";
-    if (typeof card.id !== "string") return "Card missing id";
-    if (typeof card.type !== "string") return "Card missing type";
+  for (const raw of deck as unknown[]) {
+    if (!raw || typeof raw !== "object") return { ok: false, error: "Invalid card in deck" };
+    const id = (raw as { id?: unknown }).id;
+    if (typeof id !== "string") return { ok: false, error: "Card missing id" };
 
-    const n = (counts.get(card.id) ?? 0) + 1;
-    counts.set(card.id, n);
-    if (n > MAX_CARD_COPIES) return `Too many copies of ${card.id}`;
+    const real = getCardById(id);
+    if (!real) return { ok: false, error: `Unknown card: ${id}` };
 
-    if (card.type === "unit" && card.isLord) lordCount++;
+    const n = (counts.get(id) ?? 0) + 1;
+    counts.set(id, n);
+    if (n > MAX_CARD_COPIES) return { ok: false, error: `Too many copies of ${id}` };
+
+    if (real.type === "unit" && real.isLord) lordCount++;
+    canonical.push(real);
   }
 
-  if (lordCount !== 1) return "Deck must contain exactly 1 Lord";
-  return null;
+  if (lordCount !== 1) return { ok: false, error: "Deck must contain exactly 1 Lord" };
+  return { ok: true, cards: canonical };
 }
 
 /** Socket protocol sanity check: the position object has valid row/col. */

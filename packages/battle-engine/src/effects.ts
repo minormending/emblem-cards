@@ -61,7 +61,14 @@ function applyEffect(
       const before = defSlot.unit.stats.hp;
       defSlot.unit.stats.hp -= effect.amount;
       const hpAfter = Math.max(0, defSlot.unit.stats.hp);
-      events.push({ kind: "unit_damaged", position: target, amount: effect.amount, hpAfter });
+      events.push({
+        kind: "unit_damaged",
+        position: target,
+        amount: effect.amount,
+        hpAfter,
+        defenderName: defSlot.unit.name,
+        defenderMaxHp: defSlot.unit.maxHp,
+      });
       if (defSlot.unit.stats.hp <= 0) {
         const dyingUnit = defSlot.unit;
         const removed = removeUnit(opponent.field, target);

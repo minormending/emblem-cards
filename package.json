@@ -4,7 +4,8 @@
   "scripts": {
     "build": "turbo build",
     "test": "turbo test",
-    "dev": "turbo dev"
+    "dev": "turbo dev",
+    "cards:check": "pnpm --filter @cards/card-engine cards:check"
   },
   "packageManager": "pnpm@9.12.3",
   "devDependencies": {

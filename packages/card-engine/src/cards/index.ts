@@ -1,12 +1,47 @@
+/**
+ * Loads card data from JSON, validates with zod at module load, then runs
+ * the semantic `validateCardData` (HP consistency, duplicate IDs, etc.).
+ *
+ * Fail-fast: bad data throws at import time, so tests and server startup
+ * surface the issue immediately.
+ *
+ * Non-engineers edit the JSON files under ./data/ and can run
+ * `pnpm cards:check` to validate without booting the app.
+ */
 import type { Card, UnitCard, WeaponCard, AttackType } from "@cards/shared";
-import { units } from "./units.js";
-import { weapons } from "./weapons.js";
-import { items } from "./items.js";
-import { supports } from "./supports.js";
-import { tactics } from "./tactics.js";
+import unitsJson from "./data/units.json" with { type: "json" };
+import weaponsJson from "./data/weapons.json" with { type: "json" };
+import itemsJson from "./data/items.json" with { type: "json" };
+import supportsJson from "./data/supports.json" with { type: "json" };
+import tacticsJson from "./data/tactics.json" with { type: "json" };
+import {
+  UnitsFile,
+  WeaponsFile,
+  ItemsFile,
+  SupportsFile,
+  TacticsFile,
+  formatZodIssues,
+} from "./schema.js";
 import { validateCardData } from "./validate.js";
 
-export { units, weapons, items, supports, tactics };
+function parseOrThrow<T>(
+  file: string,
+  data: unknown,
+  schema: { safeParse: (d: unknown) => { success: true; data: T } | { success: false; error: import("zod").ZodError } },
+): T {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    const lines = formatZodIssues(file, data, result.error);
+    throw new Error(`Card data in ${file} is invalid:\n  ${lines.join("\n  ")}`);
+  }
+  return result.data;
+}
+
+export const units = parseOrThrow("units.json", unitsJson, UnitsFile);
+export const weapons = parseOrThrow("weapons.json", weaponsJson, WeaponsFile);
+export const items = parseOrThrow("items.json", itemsJson, ItemsFile);
+export const supports = parseOrThrow("supports.json", supportsJson, SupportsFile);
+export const tactics = parseOrThrow("tactics.json", tacticsJson, TacticsFile);
 
 /** Every card in the game, all types combined. */
 export const allCards: Card[] = [
@@ -17,8 +52,8 @@ export const allCards: Card[] = [
   ...tactics,
 ];
 
-// Fail fast on bad card data. Running at module load means bad data
-// crashes tests/server startup rather than misbehaving at runtime.
+// Semantic invariants (HP==maxHp, duplicate ids, etc). Runs after schema
+// parsing so shape is already guaranteed.
 validateCardData(allCards);
 
 /** Lookup any card by ID. */

@@ -1,0 +1,175 @@
+[
+  {
+    "type": "weapon",
+    "id": "iron-sword",
+    "name": "Iron Sword",
+    "attackType": "sword",
+    "statBoost": { "str": 3 },
+    "effects": [],
+    "cost": 1,
+    "flavor": "Reliable and unadorned."
+  },
+  {
+    "type": "weapon",
+    "id": "brave-sword",
+    "name": "Brave Sword",
+    "attackType": "sword",
+    "statBoost": { "str": 2 },
+    "effects": [{ "kind": "double_attack" }],
+    "cost": 4,
+    "flavor": "Swing once? Why not twice."
+  },
+  {
+    "type": "weapon",
+    "id": "iron-axe",
+    "name": "Iron Axe",
+    "attackType": "axe",
+    "statBoost": { "str": 4 },
+    "effects": [],
+    "cost": 1,
+    "flavor": "Simple, brutal, effective."
+  },
+  {
+    "type": "weapon",
+    "id": "hammer",
+    "name": "Hammer",
+    "attackType": "axe",
+    "statBoost": { "str": 3 },
+    "effects": [{ "kind": "damage_multiplier_vs_tag", "tag": "armored", "multiplier": 2 }],
+    "cost": 3,
+    "flavor": "Dents armor like tin foil."
+  },
+  {
+    "type": "weapon",
+    "id": "iron-lance",
+    "name": "Iron Lance",
+    "attackType": "lance",
+    "statBoost": { "str": 3 },
+    "effects": [],
+    "cost": 1,
+    "flavor": "Reach is everything."
+  },
+  {
+    "type": "weapon",
+    "id": "javelin",
+    "name": "Javelin",
+    "attackType": "lance",
+    "statBoost": { "str": 2 },
+    "effects": [{ "kind": "ranged" }],
+    "cost": 2,
+    "flavor": "Throw it. Hit them."
+  },
+  {
+    "type": "weapon",
+    "id": "iron-bow",
+    "name": "Iron Bow",
+    "attackType": "bow",
+    "statBoost": { "str": 3 },
+    "effects": [{ "kind": "ranged" }],
+    "cost": 1,
+    "flavor": "A huntsman's companion."
+  },
+  {
+    "type": "weapon",
+    "id": "fire-tome",
+    "name": "Fire",
+    "attackType": "fire",
+    "statBoost": { "mag": 3 },
+    "effects": [],
+    "cost": 1,
+    "flavor": "The most fundamental anima spell."
+  },
+  {
+    "type": "weapon",
+    "id": "wind-tome",
+    "name": "Wind",
+    "attackType": "wind",
+    "statBoost": { "mag": 3 },
+    "effects": [],
+    "cost": 1,
+    "flavor": "A cutting gale at your command."
+  },
+  {
+    "type": "weapon",
+    "id": "excalibur-tome",
+    "name": "Excalibur",
+    "attackType": "wind",
+    "statBoost": { "mag": 4 },
+    "effects": [{ "kind": "damage_multiplier_vs_tag", "tag": "flying", "multiplier": 2 }],
+    "cost": 3,
+    "flavor": "The legendary wind that grounds all wings."
+  },
+  {
+    "type": "weapon",
+    "id": "thunder-tome",
+    "name": "Thunder",
+    "attackType": "thunder",
+    "statBoost": { "mag": 3 },
+    "effects": [],
+    "cost": 1,
+    "flavor": "A bolt from an outstretched hand."
+  },
+  {
+    "type": "weapon",
+    "id": "silver-sword",
+    "name": "Silver Sword",
+    "attackType": "sword",
+    "statBoost": { "str": 6 },
+    "effects": [],
+    "cost": 3,
+    "flavor": "The finest steel, honed to a singing edge."
+  },
+  {
+    "type": "weapon",
+    "id": "killing-edge",
+    "name": "Killing Edge",
+    "attackType": "sword",
+    "statBoost": { "str": 2 },
+    "effects": [{ "kind": "double_attack" }],
+    "cost": 4,
+    "flavor": "Light, fast, and it wants the throat."
+  },
+  {
+    "type": "weapon",
+    "id": "rapier",
+    "name": "Rapier",
+    "attackType": "sword",
+    "statBoost": { "str": 3 },
+    "effects": [
+      { "kind": "damage_multiplier_vs_tag", "tag": "armored", "multiplier": 2 },
+      { "kind": "damage_multiplier_vs_tag", "tag": "flying", "multiplier": 2 }
+    ],
+    "cost": 3,
+    "flavor": "A lord's blade. Finds the gap in any armor — or wing."
+  },
+  {
+    "type": "weapon",
+    "id": "silver-lance",
+    "name": "Silver Lance",
+    "attackType": "lance",
+    "statBoost": { "str": 5 },
+    "effects": [],
+    "cost": 3,
+    "flavor": "Long reach, lighter than it looks."
+  },
+  {
+    "type": "weapon",
+    "id": "killer-lance",
+    "name": "Killer Lance",
+    "attackType": "lance",
+    "statBoost": { "str": 2 },
+    "effects": [{ "kind": "double_attack" }],
+    "cost": 4,
+    "flavor": "Two thrusts before you can raise a shield."
+  },
+  {
+    "type": "weapon",
+    "id": "bolganone-tome",
+    "name": "Bolganone",
+    "attackType": "fire",
+    "statBoost": { "mag": 5 },
+    "effects": [],
+    "cost": 2,
+    "flavor": "A fire spell that ignores the rain."
+  }
+]

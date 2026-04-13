@@ -1,6 +1,7 @@
 import type { FieldSlot, FieldPosition } from "@cards/shared";
 import { attackTypeBorders } from "../lib/colors";
 import { CardArtMini } from "./CardArt";
+import { CombatFx } from "./battle/CombatFx";
 import { useGameStore } from "../store/gameStore";
 
 interface FieldSlotViewProps {
@@ -94,18 +95,33 @@ export function FieldSlotView({
             </span>
           )}
 
-          {/* Stats */}
-          <div className="flex gap-2 text-[11px] mt-1.5">
-            <span className="text-red-400 font-bold">{unit.stats.hp} HP</span>
-            <span className="text-orange-300">
-              {unit.stats.str > 0 ? `${unit.stats.str} STR` : `${unit.stats.mag} MAG`}
-            </span>
-          </div>
-          <div className="flex gap-2 text-[10px] opacity-70">
-            <span className="text-blue-300">{unit.stats.def} DEF</span>
-            <span className="text-purple-300">{unit.stats.res} RES</span>
-            <span className="text-green-300">{unit.stats.spd} SPD</span>
-          </div>
+          {/* Stats — weapon.statBoost values are added to the base stat so
+               the display matches what the engine uses in damage calc. */}
+          {(() => {
+            const boost = weapon?.statBoost ?? {};
+            const b = (k: keyof typeof boost) => boost[k] ?? 0;
+            const isMage = unit.stats.str === 0 && unit.stats.mag > 0;
+            const atkStat = isMage ? "mag" : "str";
+            const atkLabel = isMage ? "MAG" : "STR";
+            const atkBase = isMage ? unit.stats.mag : unit.stats.str;
+            const atkBoost = b(atkStat);
+            return (
+              <>
+                <div className="flex gap-2 text-[11px] mt-1.5">
+                  <span className="text-red-400 font-bold">{unit.stats.hp} HP</span>
+                  <span className={atkBoost ? "text-amber-300 font-bold" : "text-orange-300"}>
+                    {atkBase + atkBoost} {atkLabel}
+                    {atkBoost ? <span className="text-[9px] opacity-80"> (+{atkBoost})</span> : null}
+                  </span>
+                </div>
+                <div className="flex gap-2 text-[10px] opacity-70">
+                  <StatChip color="text-blue-300" label="DEF" base={unit.stats.def} boost={b("def")} />
+                  <StatChip color="text-purple-300" label="RES" base={unit.stats.res} boost={b("res")} />
+                  <StatChip color="text-green-300" label="SPD" base={unit.stats.spd} boost={b("spd")} />
+                </div>
+              </>
+            );
+          })()}
 
           {/* Weapon badge */}
           {weapon && (
@@ -131,6 +147,28 @@ export function FieldSlotView({
           </div>
         </>
       )}
+
+      <CombatFx side={isOwn ? "own" : "enemy"} pos={pos} />
     </div>
+  );
+}
+
+function StatChip({
+  color,
+  label,
+  base,
+  boost,
+}: {
+  color: string;
+  label: string;
+  base: number;
+  boost: number;
+}) {
+  const boosted = boost !== 0;
+  return (
+    <span className={boosted ? `${color} font-bold` : color}>
+      {base + boost} {label}
+      {boosted ? <span className="text-[9px] opacity-80"> (+{boost})</span> : null}
+    </span>
   );
 }

@@ -1,0 +1,82 @@
+[
+  {
+    "type": "tactic",
+    "id": "tactic-rally",
+    "name": "Rally",
+    "effects": [{ "kind": "buff_target", "stat": "str", "amount": 4, "duration": 1 }],
+    "cost": 1,
+    "flavor": "Steel yourselves! One last push!"
+  },
+  {
+    "type": "tactic",
+    "id": "tactic-bolting",
+    "name": "Bolting",
+    "effects": [{ "kind": "damage_target", "amount": 8 }],
+    "cost": 4,
+    "flavor": "Lightning from the horizon. Nowhere is safe."
+  },
+  {
+    "type": "tactic",
+    "id": "tactic-convoy",
+    "name": "Convoy",
+    "effects": [{ "kind": "draw_cards", "amount": 2 }],
+    "cost": 2,
+    "flavor": "Supplies from the rear. Just in time."
+  },
+  {
+    "type": "tactic",
+    "id": "tactic-rescue",
+    "name": "Rescue",
+    "effects": [{ "kind": "reposition", "from": { "row": "front", "col": 0 }, "to": { "row": "back", "col": 0 } }],
+    "cost": 1,
+    "flavor": "Pull them back before the killing blow."
+  },
+  {
+    "type": "tactic",
+    "id": "tactic-aegis",
+    "name": "Aegis",
+    "effects": [{ "kind": "buff_target", "stat": "def", "amount": 8, "duration": 1 }],
+    "cost": 3,
+    "flavor": "A shield of divine iron. Let them come."
+  },
+  {
+    "type": "tactic",
+    "id": "tactic-meteor",
+    "name": "Meteor",
+    "effects": [{ "kind": "damage_target", "amount": 12 }],
+    "cost": 5,
+    "flavor": "Fire from the sky. Pick a target and pray it's enough."
+  },
+  {
+    "type": "tactic",
+    "id": "tactic-foresight",
+    "name": "Foresight",
+    "effects": [{ "kind": "draw_cards", "amount": 3 }],
+    "cost": 3,
+    "flavor": "A glimpse ahead changes everything behind."
+  },
+  {
+    "type": "tactic",
+    "id": "tactic-divine-blessing",
+    "name": "Divine Blessing",
+    "effects": [{ "kind": "buff_target", "stat": "hp", "amount": 15, "duration": 1 }],
+    "cost": 3,
+    "flavor": "The goddess answers when the brave are dying."
+  },
+  {
+    "type": "tactic",
+    "id": "tactic-swap-posts",
+    "name": "Swap Posts",
+    "effects": [{ "kind": "reposition", "from": { "row": "front", "col": 0 }, "to": { "row": "back", "col": 0 } }],
+    "cost": 0,
+    "flavor": "Shuffle the line. Rotate the threat."
+  },
+  {
+    "type": "tactic",
+    "id": "tactic-ragnarok",
+    "name": "Ragnarok",
+    "effects": [{ "kind": "damage_target", "amount": 15 }],
+    "cost": 6,
+    "flavor": "The end times, in miniature, on one enemy."
+  }
+]

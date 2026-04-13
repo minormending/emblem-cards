@@ -28,6 +28,7 @@ import {
 import type { AIAction } from "@cards/battle-engine";
 import type { useGameStore } from "./gameStore";
 import { useLogStore } from "./logStore";
+import { useFxStore, isMagicalAttack } from "./fxStore";
 import { sfx } from "../lib/sounds";
 
 type Store = typeof useGameStore;
@@ -132,21 +133,68 @@ function applyActionFx(
 
   const show = store.getState().showMessage;
 
+  // Item/tactic damage (Bolting, Meteor) also produces unit_damaged events.
+  spawnCombatFx(gs, events);
+
   if (action.type === "deploy") {
     sfx.deploy();
     if (preText) show(preText);
     return;
   }
 
-  // Attack
+  // Attack — surface outgoing damage, counter damage, shakes, and KOs.
   sfx.attack();
-  const damage = events.find((e) => e.kind === "unit_damaged");
-  if (damage?.kind === "unit_damaged") {
-    show(`AI deals ${damage.amount} damage`);
+
+  const damageEvents = events.filter(
+    (e): e is Extract<GameEvent, { kind: "unit_damaged" }> => e.kind === "unit_damaged",
+  );
+  if (damageEvents.length > 0) {
+    show(`AI deals ${damageEvents[0].amount} damage`);
+    const counter = damageEvents.find((e) => e.isCounter);
+    if (counter) {
+      setTimeout(() => show(`counter: ${counter.amount}`), 450);
+    }
   }
+
+  // Shake only the enemy (AI) side from the viewer's perspective — counter
+  // damage lands on the AI's attacker.
+  for (const e of damageEvents) {
+    if (e.isCounter) triggerShake(store, e.position);
+  }
+  // And the original target (human's unit).
   triggerShake(store, action.to);
-  if (events.some((e) => e.kind === "unit_ko")) {
+
+  const koCount = events.filter((e) => e.kind === "unit_ko").length;
+  if (koCount > 0) {
     setTimeout(() => sfx.ko(), 150);
+    if (koCount > 1) setTimeout(() => sfx.ko(), 400);
+  }
+}
+
+/**
+ * Spawn transient combat VFX for every unit_damaged event. Viewer is always
+ * player 0 in AI mode, so:
+ *   - outgoing hits (AI → human) land on the viewer's own field
+ *   - counters (human → AI) land on the enemy field
+ *   - tactic damage from AI (damage_target on human unit) lands on own field
+ */
+function spawnCombatFx(state: GameState, events: GameEvent[]): void {
+  const spawn = useFxStore.getState().spawn;
+  const currentIndex = state.currentPlayerIndex;
+  for (const e of events) {
+    if (e.kind !== "unit_damaged") continue;
+    // Defender index: counter hits the current player; otherwise the opponent.
+    const defenderIndex = e.isCounter ? currentIndex : currentIndex === 0 ? 1 : 0;
+    const side = defenderIndex === 0 ? "own" : "enemy";
+    const attackType = e.attackerAttackType ?? null;
+    spawn({
+      side,
+      pos: e.position,
+      kind: isMagicalAttack(attackType) ? "magical" : "physical",
+      attackType,
+      amount: e.amount,
+      isCounter: !!e.isCounter,
+    });
   }
 }
 

@@ -1,4 +1,5 @@
 import type {
+  AttackType,
   Card,
   FieldPosition,
   ItemCard,
@@ -38,7 +39,21 @@ export type GameEvent =
   | { kind: "item_played"; card: ItemCard | TacticCard; target: FieldPosition | null }
 
   // ── Damage and healing ──
-  | { kind: "unit_damaged"; position: FieldPosition; amount: number; hpAfter: number; source?: FieldPosition }
+  | {
+      kind: "unit_damaged";
+      position: FieldPosition;
+      amount: number;
+      hpAfter: number;
+      source?: FieldPosition;
+      /** Names of the units involved — present for engine-emitted combat events. */
+      attackerName?: string;
+      defenderName?: string;
+      defenderMaxHp?: number;
+      /** Attacker's element — drives VFX tint and icon. */
+      attackerAttackType?: AttackType;
+      /** True when this hit is the defender's counter-attack reaction. */
+      isCounter?: boolean;
+    }
   | { kind: "unit_healed"; position: FieldPosition; amount: number; hpAfter: number }
   | { kind: "unit_buffed"; position: FieldPosition; stat: keyof Stats; amount: number }
   | { kind: "unit_ko"; position: FieldPosition; unit: UnitCard }
@@ -73,8 +88,19 @@ export function formatEvent(event: GameEvent): string {
       return `${event.support.name} discarded (duplicate)`;
     case "item_played":
       return `${event.card.name} played`;
-    case "unit_damaged":
+    case "unit_damaged": {
+      const hpText = event.defenderMaxHp
+        ? `${event.hpAfter}/${event.defenderMaxHp} HP`
+        : `${event.hpAfter} HP`;
+      if (event.attackerName && event.defenderName) {
+        const verb = event.isCounter ? "counters" : "attacks";
+        return `${event.attackerName} ${verb} ${event.defenderName} for ${event.amount} damage (${hpText})`;
+      }
+      if (event.defenderName) {
+        return `${event.defenderName} takes ${event.amount} damage (${hpText})`;
+      }
       return `-${event.amount} HP (${event.hpAfter} remaining)`;
+    }
     case "unit_healed":
       return `+${event.amount} HP (${event.hpAfter} current)`;
     case "unit_buffed":

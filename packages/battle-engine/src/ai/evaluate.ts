@@ -19,6 +19,7 @@ import type {
   FieldCol,
   Card,
   UnitCard,
+  WeaponCard,
 } from "@cards/shared";
 import { calculateDamage } from "@cards/card-engine";
 import { getSlot, getOccupiedPositions, canReach } from "../field.js";
@@ -147,19 +148,46 @@ function scoreUnitDeploy(
 
 function scoreWeaponDeploy(
   state: GameState,
-  _card: Card,
+  card: Card,
   pos: FieldPosition,
   handIndex: number
 ): AIDeployAction | null {
+  if (card.type !== "weapon") return null;
   const player = currentPlayer(state);
   const slot = getSlot(player.field, pos);
-  if (!slot.unit || slot.weapon) return null;
+  if (!slot.unit) return null;
 
-  const reasoning: ScoreContribution[] = [{ label: "equip weapon", delta: SCORING.DEPLOY_WEAPON_BASE }];
+  // Weapon-type compatibility mirrors field.ts canEquip — skip illegal equips.
+  const unitMagical = ["fire", "wind", "thunder"].includes(slot.unit.attackType);
+  const weaponMagical = ["fire", "wind", "thunder"].includes(card.attackType);
+  if (unitMagical !== weaponMagical) return null;
+  if (!weaponMagical && slot.unit.attackType !== card.attackType) return null;
+
+  const reasoning: ScoreContribution[] = [];
+
+  if (slot.weapon) {
+    // Swap/upgrade path — only worth it if the new weapon is better.
+    const delta = weaponPower(card) - weaponPower(slot.weapon);
+    if (delta <= 0) return null;
+    reasoning.push({ label: `upgrade weapon (+${delta})`, delta });
+  } else {
+    reasoning.push({ label: "equip weapon", delta: SCORING.DEPLOY_WEAPON_BASE });
+  }
+
   if (!slot.hasActed) {
     reasoning.push({ label: "unit hasn't acted yet", delta: SCORING.EQUIP_FRESH_UNIT_BONUS });
   }
   return { type: "deploy", handIndex, target: pos, score: sumScore(reasoning), reasoning };
+}
+
+/**
+ * Rough worth of a weapon: its best offensive stat boost plus a flat bonus
+ * per effect. Used for comparing candidates in a swap.
+ */
+function weaponPower(w: WeaponCard): number {
+  const str = w.statBoost.str ?? 0;
+  const mag = w.statBoost.mag ?? 0;
+  return Math.max(str, mag) + w.effects.length * 3;
 }
 
 // ── Item / tactic deploy scoring ──
@@ -184,10 +212,22 @@ function scoreItemOrTacticDeploy(
     return actions;
   }
   if (kinds.has("reposition")) {
+    // Reposition swaps the target with the opposite row at the same column.
+    // The engine validates that the target slot has a unit — picking
+    // `{ back, 0 }` unconditionally would abort the turn when that slot is
+    // empty. Aim at an actual own unit instead. Prefer front-row wounded
+    // units (the classic "pull them back" play).
+    const own = getOccupiedPositions(currentPlayer(state).field);
+    if (own.length === 0) return actions;
+    const target =
+      own.find((p) => {
+        const u = getSlot(currentPlayer(state).field, p).unit;
+        return p.row === "front" && u && u.stats.hp < u.maxHp * 0.5;
+      }) ?? own[0];
     actions.push({
       type: "deploy",
       handIndex,
-      target: { row: "back", col: 0 },
+      target,
       score: SCORING.DEPLOY_TACTIC_BASE,
       reasoning: [{ label: "reposition tactic", delta: SCORING.DEPLOY_TACTIC_BASE }],
     });

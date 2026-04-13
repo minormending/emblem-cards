@@ -1,0 +1,86 @@
+[
+  {
+    "type": "support",
+    "id": "support-brothers",
+    "name": "Bond of Arms",
+    "pairRequirement": { "classA": "Lord", "classB": "Knight" },
+    "effects": [
+      { "kind": "pair_bonus", "stat": "def", "amount": 4 },
+      { "kind": "pair_bonus", "stat": "str", "amount": 2 }
+    ],
+    "cost": 2,
+    "flavor": "He stands so the lord does not fall."
+  },
+  {
+    "type": "support",
+    "id": "support-sky-sisters",
+    "name": "Wing Sisters",
+    "pairRequirement": { "classA": "Pegasus Knight", "classB": "Wyvern Rider" },
+    "effects": [
+      { "kind": "pair_bonus", "stat": "spd", "amount": 4 },
+      { "kind": "pair_bonus", "stat": "str", "amount": 2 }
+    ],
+    "cost": 2,
+    "flavor": "Formation flying. Trust above the clouds."
+  },
+  {
+    "type": "support",
+    "id": "support-medic",
+    "name": "Frontline Medic",
+    "pairRequirement": { "classA": "Cleric", "classB": "Knight" },
+    "effects": [
+      { "kind": "pair_bonus", "stat": "def", "amount": 2 },
+      { "kind": "heal_adjacent", "amount": 3 }
+    ],
+    "cost": 2,
+    "flavor": "Mend behind the wall."
+  },
+  {
+    "type": "support",
+    "id": "support-vanguard",
+    "name": "Royal Vanguard",
+    "pairRequirement": { "classA": "Lord", "classB": "Swordmaster" },
+    "effects": [
+      { "kind": "pair_bonus", "stat": "str", "amount": 3 },
+      { "kind": "pair_bonus", "stat": "spd", "amount": 2 }
+    ],
+    "cost": 2,
+    "flavor": "The prince commands. The demon answers."
+  },
+  {
+    "type": "support",
+    "id": "support-dark-pact",
+    "name": "Dark Pact",
+    "pairRequirement": { "classA": "Mage", "classB": "Shaman" },
+    "effects": [
+      { "kind": "pair_bonus", "stat": "mag", "amount": 4 },
+      { "kind": "pair_bonus", "stat": "res", "amount": 2 }
+    ],
+    "cost": 3,
+    "flavor": "Two schools of magic. One unholy bargain."
+  },
+  {
+    "type": "support",
+    "id": "support-fellbeasts",
+    "name": "Fellbeasts",
+    "pairRequirement": { "classA": "Wyvern Rider", "classB": "Berserker" },
+    "effects": [
+      { "kind": "pair_bonus", "stat": "str", "amount": 4 },
+      { "kind": "pair_bonus", "stat": "def", "amount": 2 }
+    ],
+    "cost": 3,
+    "flavor": "The scaled and the savage. Give them room."
+  },
+  {
+    "type": "support",
+    "id": "support-guardian",
+    "name": "Guardian's Oath",
+    "pairRequirement": { "classA": "General", "classB": "Cleric" },
+    "effects": [
+      { "kind": "pair_bonus", "stat": "def", "amount": 4 },
+      { "kind": "heal_adjacent", "amount": 3 }
+    ],
+    "cost": 2,
+    "flavor": "He stands forever. She keeps him standing."
+  }
+]

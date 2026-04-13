@@ -114,6 +114,7 @@ export function Battle() {
             selectedHandIndex={selectedHandIndex}
             selectedAttackerPos={selectedAttackerPos}
             lastHitPos={lastHitPos}
+            ownField={me.field}
             onClick={handleEnemySlotClick}
           />
           <FieldDivider />
@@ -129,6 +130,7 @@ export function Battle() {
             selectedHandIndex={selectedHandIndex}
             selectedAttackerPos={selectedAttackerPos}
             lastHitPos={lastHitPos}
+            ownField={me.field}
             onClick={handleOwnSlotClick}
           />
           <OwnInfo deckCount={me.deck.length} discardCount={me.discardPile.length} />

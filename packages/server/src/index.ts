@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import { Server } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents } from "@cards/shared";
 import { formatError } from "@cards/shared";
@@ -9,9 +10,28 @@ import { log } from "./logger.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 
-const io = new Server<ClientToServerEvents, ServerToClientEvents>({
+const defaultOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+];
+const corsOrigin = process.env.CLIENT_ORIGIN
+  ? process.env.CLIENT_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean)
+  : defaultOrigins;
+
+const httpServer = createServer((req, res) => {
+  if (req.url === "/healthz") {
+    res.writeHead(200, { "content-type": "text/plain" });
+    res.end("ok");
+    return;
+  }
+  res.writeHead(404);
+  res.end();
+});
+
+const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],
+    origin: corsOrigin,
     methods: ["GET", "POST"],
   },
 });
@@ -84,14 +104,15 @@ io.on("connection", (socket) => {
     const playerId = requireAuthOrError(socket);
     if (!playerId) return;
 
-    const deckError = validateDeck(deck);
-    if (deckError) {
-      socket.emit("game:error", deckError);
-      log.warn("queue", `${shortId(playerId)} deck rejected`, { reason: deckError });
+    const deckCheck = validateDeck(deck);
+    if (!deckCheck.ok) {
+      socket.emit("game:error", deckCheck.error);
+      log.warn("queue", `${shortId(playerId)} deck rejected`, { reason: deckCheck.error });
       return;
     }
 
-    const pos = queue.add(playerId, deck);
+    // Use the authoritative card objects, not whatever the client sent.
+    const pos = queue.add(playerId, deckCheck.cards);
     socket.emit("queue:joined", { position: pos });
     log.info("queue", `${shortId(playerId)} joined`, { size: queue.size });
 
@@ -275,5 +296,6 @@ function tryStartMatch(): void {
   if (p2Socket) io.to(p2Socket).emit("game:start", room.getView(p2.socketId));
 }
 
-io.listen(PORT);
-log.info("server", `listening on :${PORT}`);
+httpServer.listen(PORT, () => {
+  log.info("server", `listening on :${PORT}`);
+});

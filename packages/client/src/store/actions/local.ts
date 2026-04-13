@@ -14,7 +14,7 @@
  * `useLogStore.addFromEvents` maps each event to a log entry. No duplication
  * of "what happened" logic between engine and log.
  */
-import type { FieldPosition } from "@cards/shared";
+import type { FieldPosition, GameEvent, GameState } from "@cards/shared";
 import { formatError, isErr, err, ErrorCode } from "@cards/shared";
 import {
   attackAction,
@@ -24,6 +24,7 @@ import {
 } from "@cards/battle-engine";
 import type { useGameStore } from "../gameStore";
 import { useLogStore } from "../logStore";
+import { useFxStore, isMagicalAttack } from "../fxStore";
 import { sfx } from "../../lib/sounds";
 import { scheduleAITurn } from "../aiTurn";
 import type { GameActions } from "./types";
@@ -47,6 +48,8 @@ export function createLocalActions(store: Store): GameActions {
       } else {
         sfx.deploy();
         useLogStore.getState().addFromEvents(gameState, result.value);
+        // Item/tactic damage events also get VFX (e.g. Meteor, Bolting).
+        spawnCombatFx(gameState, result.value, mode);
       }
       store.setState({ gameState: { ...gameState }, selectedHandIndex: null });
     },
@@ -68,17 +71,37 @@ export function createLocalActions(store: Store): GameActions {
         sfx.attack();
         const events = result.value;
 
-        // Log + toast
+        // Log
         useLogStore.getState().addFromEvents(gameState, events);
-        const damageEvent = events.find((e) => e.kind === "unit_damaged");
-        if (damageEvent?.kind === "unit_damaged") {
-          state.showMessage(`${damageEvent.amount} damage!`);
+
+        // Toast: primary hit + counter if present
+        const damageEvents = events.filter(
+          (e): e is Extract<GameEvent, { kind: "unit_damaged" }> => e.kind === "unit_damaged",
+        );
+        if (damageEvents.length > 0) {
+          state.showMessage(`${damageEvents[0].amount} damage!`);
+          const counter = damageEvents.find((e) => e.isCounter);
+          if (counter) {
+            setTimeout(() => state.showMessage(`counter: ${counter.amount}`), 450);
+          }
         }
 
-        // Animations
-        triggerShake(store, to);
+        // Visual effects — one instance per unit_damaged
+        spawnCombatFx(gameState, events, mode);
+
+        // Shake the slots that actually took damage (enemy side only — own
+        // side already pulses from the FX overlay).
+        for (const e of damageEvents) {
+          const side = damageSide(gameState, e, mode);
+          if (side === "enemy") triggerShake(store, e.position);
+        }
+
         if (events.some((e) => e.kind === "unit_ko")) {
           setTimeout(() => sfx.ko(), 150);
+          // second KO sfx when both sides die in the exchange
+          if (events.filter((e) => e.kind === "unit_ko").length > 1) {
+            setTimeout(() => sfx.ko(), 400);
+          }
         }
       }
 
@@ -122,4 +145,51 @@ function fail(state: ReturnType<Store["getState"]>, e: ReturnType<typeof err>): 
 function triggerShake(store: Store, pos: FieldPosition): void {
   store.getState().setLastHitPos(pos);
   setTimeout(() => store.getState().setLastHitPos(null), 400);
+}
+
+/**
+ * Which field is this damage landing on — "own" (bottom of UI) or "enemy"
+ * (top of UI) — from the viewer's perspective.
+ *
+ * Viewer rules:
+ *   - AI mode: the human is always player 0.
+ *   - Local hot-seat: the viewer is whoever is the current player.
+ *
+ * Then: outgoing hits the opponent of the current player; counter hits the
+ * current player's own unit.
+ */
+function damageSide(
+  state: GameState,
+  event: Extract<GameEvent, { kind: "unit_damaged" }>,
+  mode: string,
+): "own" | "enemy" {
+  const viewerIndex = mode === "ai" ? 0 : state.currentPlayerIndex;
+  const currentIndex = state.currentPlayerIndex;
+  const defenderIndex = event.isCounter
+    ? currentIndex
+    : currentIndex === 0
+      ? 1
+      : 0;
+  return defenderIndex === viewerIndex ? "own" : "enemy";
+}
+
+function spawnCombatFx(
+  state: GameState,
+  events: GameEvent[],
+  mode: string,
+): void {
+  const spawn = useFxStore.getState().spawn;
+  for (const e of events) {
+    if (e.kind !== "unit_damaged") continue;
+    const side = damageSide(state, e, mode);
+    const attackType = e.attackerAttackType ?? null;
+    spawn({
+      side,
+      pos: e.position,
+      kind: isMagicalAttack(attackType) ? "magical" : "physical",
+      attackType,
+      amount: e.amount,
+      isCounter: !!e.isCounter,
+    });
+  }
 }

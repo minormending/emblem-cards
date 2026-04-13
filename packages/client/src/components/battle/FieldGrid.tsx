@@ -1,5 +1,5 @@
 import type { FieldPosition, FieldRow, FieldCol, Field } from "@cards/shared";
-import { getSlot } from "@cards/battle-engine";
+import { getSlot, canAttack } from "@cards/battle-engine";
 import { FieldSlotView } from "../FieldSlotView";
 
 const ROWS: FieldRow[] = ["front", "back"];
@@ -17,6 +17,11 @@ interface FieldGridProps {
   selectedHandIndex: number | null;
   /** Position that was just hit, to trigger shake animation. */
   lastHitPos: FieldPosition | null;
+  /**
+   * The current player's own field. Used on the enemy grid to compute which
+   * defender slots the selected attacker can legally reach.
+   */
+  ownField: Field;
   onClick: (pos: FieldPosition) => void;
 }
 
@@ -32,6 +37,7 @@ export function FieldGrid({
   selectedAttackerPos,
   selectedHandIndex,
   lastHitPos,
+  ownField,
   onClick,
 }: FieldGridProps) {
   const rows = flipped ? [...ROWS].reverse() : ROWS;
@@ -49,7 +55,11 @@ export function FieldGrid({
               selectedAttackerPos?.row === row &&
               selectedAttackerPos?.col === col;
             const isDeployTarget = isOwn && selectedHandIndex !== null;
-            const isAttackTarget = !isOwn && selectedAttackerPos !== null && slot.unit !== null;
+            const isAttackTarget =
+              !isOwn &&
+              selectedAttackerPos !== null &&
+              slot.unit !== null &&
+              canAttack(ownField, selectedAttackerPos, field, pos);
             const wasHit =
               !isOwn && lastHitPos?.row === row && lastHitPos?.col === col;
 

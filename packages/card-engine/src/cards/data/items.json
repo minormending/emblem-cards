@@ -1,0 +1,58 @@
+[
+  {
+    "type": "item",
+    "id": "vulnerary",
+    "name": "Vulnerary",
+    "effects": [{ "kind": "heal_target", "amount": 10 }],
+    "cost": 1,
+    "flavor": "A staple of every soldier's kit."
+  },
+  {
+    "type": "item",
+    "id": "pure-water",
+    "name": "Pure Water",
+    "effects": [{ "kind": "buff_target", "stat": "res", "amount": 5, "duration": 2 }],
+    "cost": 1,
+    "flavor": "Blessed water that wards off magic."
+  },
+  {
+    "type": "item",
+    "id": "energy-ring",
+    "name": "Energy Ring",
+    "effects": [{ "kind": "buff_target", "stat": "str", "amount": 4, "duration": 2 }],
+    "cost": 2,
+    "flavor": "Pulses with raw power."
+  },
+  {
+    "type": "item",
+    "id": "elixir",
+    "name": "Elixir",
+    "effects": [{ "kind": "heal_target", "amount": 20 }],
+    "cost": 3,
+    "flavor": "Full recovery, in a single bottle."
+  },
+  {
+    "type": "item",
+    "id": "speedwings",
+    "name": "Speedwings",
+    "effects": [{ "kind": "buff_target", "stat": "spd", "amount": 3, "duration": 1 }],
+    "cost": 2,
+    "flavor": "Crushed wings of a phoenix. Fleet as fire."
+  },
+  {
+    "type": "item",
+    "id": "goddess-icon",
+    "name": "Goddess Icon",
+    "effects": [{ "kind": "buff_target", "stat": "def", "amount": 3, "duration": 1 }],
+    "cost": 2,
+    "flavor": "A keepsake that hardens resolve — and flesh."
+  },
+  {
+    "type": "item",
+    "id": "talisman",
+    "name": "Talisman",
+    "effects": [{ "kind": "buff_target", "stat": "res", "amount": 3, "duration": 1 }],
+    "cost": 2,
+    "flavor": "Ward against the unseen."
+  }
+]

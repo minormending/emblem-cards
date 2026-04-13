@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { useGameStore, getCurrentPlayer } from "../store/gameStore";
 import { getOccupiedPositions } from "@cards/battle-engine";
-import { hasDoneBattleHints, markBattleHintsDone } from "../lib/firstTime";
+import {
+  hasDoneBattleHints,
+  markBattleHintsDone,
+  getDismissedHints,
+  addDismissedHint,
+} from "../lib/firstTime";
 
 // Step definitions — each has a check that decides if this step is "active"
 // (i.e., should be shown to the player right now).
@@ -62,7 +67,9 @@ const steps: HintStep[] = [
 
 export function BattleHints() {
   const store = useGameStore();
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  // Seed from localStorage so previously-dismissed hints stay dismissed across
+  // games, page reloads, and new matches.
+  const [dismissed, setDismissed] = useState<Set<string>>(() => getDismissedHints());
   const [enabled] = useState(() => !hasDoneBattleHints());
 
   // When all steps are dismissed, mark battle hints as done permanently.
@@ -94,13 +101,14 @@ export function BattleHints() {
             <div className="text-xs text-white/80 leading-relaxed">{current.body}</div>
           </div>
           <button
-            onClick={() =>
+            onClick={() => {
+              addDismissedHint(current.id);
               setDismissed((s) => {
                 const next = new Set(s);
                 next.add(current.id);
                 return next;
-              })
-            }
+              });
+            }}
             className="text-white/40 hover:text-white text-xs font-bold transition-colors flex-shrink-0"
             aria-label="Dismiss hint"
           >

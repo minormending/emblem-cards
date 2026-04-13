@@ -129,7 +129,9 @@ export { deployCard } from "./deploy.js";
  *   - Attacker can't reach the target (row/range rules)
  *
  * On success, returns the list of events: unit_damaged, possibly unit_ko,
- * possibly game_won.
+ * possibly game_won. If the defender survives and is able to reach back
+ * under the normal reach rules, a counter-attack is resolved immediately
+ * and its events are appended.
  */
 export function attackAction(
   state: GameState,
@@ -182,11 +184,17 @@ export function attackAction(
       amount: damage.totalDamage,
       hpAfter: Math.max(0, defSlot.unit.stats.hp),
       source: attackerPos,
+      attackerName: atkSlot.unit.name,
+      defenderName: defSlot.unit.name,
+      defenderMaxHp: defSlot.unit.maxHp,
+      attackerAttackType: atkSlot.unit.attackType,
     },
   ];
 
-  // KO check
+  // KO check on the original defender
+  let defenderKOd = false;
   if (defSlot.unit.stats.hp <= 0) {
+    defenderKOd = true;
     const dyingUnit = defSlot.unit;
     const removed = removeUnit(opponent.field, defenderPos);
     if (removed.unit) opponent.discardPile.push(removed.unit);
@@ -201,7 +209,95 @@ export function attackAction(
     }
   }
 
+  // ── Counter-attack ──
+  // If the defender survived and can reach the attacker under the normal
+  // reach rules, they retaliate automatically. The counter does not consume
+  // the defender's `hasActed` — it's a reaction, not their scheduled action.
+  if (!defenderKOd && !state.winner) {
+    // After KO handling above, defSlot still references the same slot, and
+    // we know defSlot.unit is non-null because the defender survived.
+    const counterReaches = canReach(
+      opponent.field,
+      defenderPos,
+      player.field,
+      attackerPos,
+      isRanged(defSlot.unit!, defSlot.weapon),
+      isFlying(defSlot.unit!, defSlot.weapon),
+    );
+    if (counterReaches) {
+      const counterDamage = calculateDamage(
+        defSlot.unit!,
+        defSlot.weapon,
+        atkSlot.unit,
+        atkSlot.weapon,
+        {
+          attackerSupports: opponent.activeSupportCards,
+          defenderSupports: player.activeSupportCards,
+          isActiveSupport: (support, side) => {
+            // `side` is from the counter's perspective: the counter's
+            // attacker is the original defender (opponent), the counter's
+            // defender is the original attacker (player).
+            const field = side === "attacker" ? opponent.field : player.field;
+            return isSupportPairActive(field, support);
+          },
+        }
+      );
+
+      atkSlot.unit.stats.hp -= counterDamage.totalDamage;
+      events.push({
+        kind: "unit_damaged",
+        position: attackerPos,
+        amount: counterDamage.totalDamage,
+        hpAfter: Math.max(0, atkSlot.unit.stats.hp),
+        source: defenderPos,
+        attackerName: defSlot.unit!.name,
+        defenderName: atkSlot.unit.name,
+        defenderMaxHp: atkSlot.unit.maxHp,
+        attackerAttackType: defSlot.unit!.attackType,
+        isCounter: true,
+      });
+
+      if (atkSlot.unit.stats.hp <= 0) {
+        const dyingAttacker = atkSlot.unit;
+        const removed = removeUnit(player.field, attackerPos);
+        if (removed.unit) player.discardPile.push(removed.unit);
+        if (removed.weapon) player.discardPile.push(removed.weapon);
+        events.push({ kind: "unit_ko", position: attackerPos, unit: dyingAttacker });
+        if (!state.winner) {
+          const winner = checkWinCondition(state);
+          if (winner) {
+            state.winner = winner;
+            events.push({ kind: "game_won", winner, reason: "lord_ko" });
+          }
+        }
+      }
+    }
+  }
+
   return ok(events);
+}
+
+/**
+ * Would an attack at (attackerPos → defenderPos) be legal under the reach
+ * rules? Same check the server runs inside `attackAction`, exposed so the UI
+ * can highlight only legal targets. Does not check turn / hasActed.
+ */
+export function canAttack(
+  ownField: Field,
+  attackerPos: FieldPosition,
+  enemyField: Field,
+  defenderPos: FieldPosition,
+): boolean {
+  const atk = getSlot(ownField, attackerPos);
+  if (!atk.unit) return false;
+  return canReach(
+    ownField,
+    attackerPos,
+    enemyField,
+    defenderPos,
+    isRanged(atk.unit, atk.weapon),
+    isFlying(atk.unit, atk.weapon),
+  );
 }
 
 /** Unit is ranged if it attacks with a bow, or has a ranged effect on itself or its weapon. */

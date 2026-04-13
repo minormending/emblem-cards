@@ -218,13 +218,27 @@ export function CardArt({ card, height = 72 }: CardArtProps) {
         </radialGradient>
       </defs>
       <rect width="100" height="80" fill={`url(#${gradId})`} />
-      <rect width="100" height="80" fill={`url(#${glowId})`} />
 
-      {card.type === "unit" && <UnitIcon card={card} />}
-      {card.type === "weapon" && <WeaponIcon card={card} />}
-      {card.type === "item" && <ItemIcon />}
-      {card.type === "support" && <SupportIcon />}
-      {card.type === "tactic" && <TacticIcon />}
+      {card.art ? (
+        <image
+          href={card.art}
+          x="0"
+          y="0"
+          width="100"
+          height="80"
+          preserveAspectRatio="xMidYMid slice"
+        />
+      ) : (
+        <>
+          {card.type === "unit" && <UnitIcon card={card} />}
+          {card.type === "weapon" && <WeaponIcon card={card} />}
+          {card.type === "item" && <ItemIcon />}
+          {card.type === "support" && <SupportIcon />}
+          {card.type === "tactic" && <TacticIcon />}
+        </>
+      )}
+
+      <rect width="100" height="80" fill={`url(#${glowId})`} />
     </svg>
   );
 }
@@ -244,7 +258,18 @@ export function CardArtMini({ card }: { card: Extract<Card, { type: "unit" }> })
         </linearGradient>
       </defs>
       <rect width="100" height="80" fill={`url(#${gradId})`} />
-      <UnitIcon card={card} />
+      {card.art ? (
+        <image
+          href={card.art}
+          x="0"
+          y="0"
+          width="100"
+          height="80"
+          preserveAspectRatio="xMidYMid slice"
+        />
+      ) : (
+        <UnitIcon card={card} />
+      )}
     </svg>
   );
 }

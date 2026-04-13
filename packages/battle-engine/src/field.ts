@@ -155,8 +155,10 @@ export function getAdjacentPositions(pos: FieldPosition): FieldPosition[] {
 /**
  * Check if an attacker at `from` can reach a defender at `to`.
  *
- * Front melee  → can hit enemy front only
- * Back melee   → cannot attack at all
+ * Front melee  → can hit enemy front; can hit enemy back only if the entire
+ *                enemy front row is empty (nothing left to engage)
+ * Back melee   → normally cannot attack; but if the attacker's own front row
+ *                is entirely empty, it advances and can hit enemy front
  * Front ranged → can hit enemy front, or enemy back if that column's front is empty
  * Back ranged  → same as front ranged (ranged/flying can attack from back row)
  */
@@ -175,12 +177,19 @@ export function canReach(
 
   const isRangedOrFlying = attackerIsRanged || attackerIsFlying;
 
-  // Back-row melee attacker cannot attack at all
-  if (attackerPos.row === "back" && !isRangedOrFlying) return false;
-
-  // Front-row melee attacker can only hit enemy front row
-  if (attackerPos.row === "front" && !isRangedOrFlying) {
+  // Back-row melee attacker: only if the attacker's own front is empty, and
+  // then only against the enemy front row (still a melee, can't skip rows).
+  if (attackerPos.row === "back" && !isRangedOrFlying) {
+    const ownFrontEmpty = attackerField.front.every((slot) => slot.unit === null);
+    if (!ownFrontEmpty) return false;
     return defenderPos.row === "front";
+  }
+
+  // Front-row melee attacker
+  if (attackerPos.row === "front" && !isRangedOrFlying) {
+    if (defenderPos.row === "front") return true;
+    // Reach into back row only when the enemy front is completely empty
+    return defenderField.front.every((slot) => slot.unit === null);
   }
 
   // Ranged/Flying attacker — can always hit enemy front row

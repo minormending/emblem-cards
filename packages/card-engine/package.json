@@ -5,13 +5,16 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "test": "vitest run"
+    "build": "tsc && cp -R src/cards/data dist/cards/data",
+    "test": "vitest run",
+    "cards:check": "tsx scripts/check-cards.ts"
   },
   "dependencies": {
-    "@cards/shared": "workspace:*"
+    "@cards/shared": "workspace:*",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "tsx": "^4.19.0",
     "typescript": "^5.8.0",
     "vitest": "^3.1.0"
   }
