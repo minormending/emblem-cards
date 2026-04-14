@@ -33,7 +33,7 @@ export function TurnBanner({
   }, [isMyTurn]);
 
   const animStyle = useAnimatedStyle(() => ({
-    backgroundColor: `rgba(52,211,153,${flash.value * 0.25})`,
+    backgroundColor: `rgba(52,211,153,${Math.round(flash.value * 250) / 1000})`,
     paddingHorizontal: 6 + flash.value * 4,
     paddingVertical: 2,
     borderRadius: 4,

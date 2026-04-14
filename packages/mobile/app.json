@@ -22,6 +22,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.emblemcards.game",
+      "buildNumber": "1",
       "supportsTablet": true
     },
     "web": {
