@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Emblem Cards — Privacy Policy</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; max-width: 720px; margin: 2em auto; padding: 0 1em; color: #1f2937; line-height: 1.55; }
+    h1 { color: #b45309; }
+    h2 { color: #374151; margin-top: 1.8em; }
+    a { color: #2563eb; }
+    .meta { color: #6b7280; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <h1>Emblem Cards — Privacy Policy</h1>
+  <p class="meta">Last updated: 2026-04-13</p>
+
+  <p>Emblem Cards ("the app") is built with user privacy as a core design goal. This page describes exactly what data the app handles.</p>
+
+  <h2>What we collect</h2>
+  <p><strong>On-device only (not transmitted):</strong></p>
+  <ul>
+    <li>A randomly-generated player ID (UUID) created on first launch.</li>
+    <li>Your chosen display name (defaults to <code>Player-XXXX</code>).</li>
+    <li>Your saved deck, in-progress match state, win/loss record, and settings.</li>
+  </ul>
+  <p>All of the above is stored locally using Android's AsyncStorage. Uninstalling the app removes this data. Using the "Reset identity" button in Settings clears it manually.</p>
+
+  <h2>Data sent over the network</h2>
+  <p>The app only makes network requests when you use <strong>Online multiplayer</strong>. In that mode:</p>
+  <ul>
+    <li>Your player ID and display name are sent to the server you configured.</li>
+    <li>Your in-game actions (deploy, attack, end turn) are sent to the server so your opponent's client can render them.</li>
+    <li>The server URL you use is one <em>you</em> choose in Settings — there is no default third-party backend.</li>
+  </ul>
+  <p>Offline modes (Quick Start, VS Computer, Local 2P) do not make any network requests.</p>
+
+  <h2>What we do not collect</h2>
+  <ul>
+    <li>No email, phone number, contacts, or other personal information.</li>
+    <li>No location, camera, microphone, or device identifiers (no advertising ID, no IMEI).</li>
+    <li>No crash-reporting SDK or third-party analytics.</li>
+    <li>No ads.</li>
+  </ul>
+
+  <h2>Permissions</h2>
+  <p>The app requests:</p>
+  <ul>
+    <li><code>INTERNET</code> — only used for Online multiplayer connections to the server URL you configure.</li>
+    <li><code>VIBRATE</code> — for haptic feedback on game events; can be disabled in Settings.</li>
+  </ul>
+
+  <h2>Children's privacy</h2>
+  <p>The app does not knowingly collect information from children. Because we do not collect personal information from any user, children included, no separate handling is needed.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy is updated, the "Last updated" date above will change. Substantive changes will be accompanied by an in-app notice.</p>
+
+  <h2>Contact</h2>
+  <p>Questions or complaints: <a href="mailto:54426030+minormending@users.noreply.github.com">54426030+minormending@users.noreply.github.com</a></p>
+</body>
+</html>
