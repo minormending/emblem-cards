@@ -152,7 +152,7 @@ export function Menu() {
       <View style={styles.header}>
         <Text style={styles.title}>Emblem Cards</Text>
         <Text style={styles.subtitle}>
-          Tactical card battles inspired by Fire Emblem
+          Tactical card battles on a 2×3 grid
         </Text>
       </View>
 

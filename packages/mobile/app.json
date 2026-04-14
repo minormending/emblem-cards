@@ -2,7 +2,7 @@
   "expo": {
     "name": "Emblem Cards",
     "slug": "emblem-cards",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "default",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -13,20 +13,30 @@
       "backgroundColor": "#0b0d12"
     },
     "android": {
-      "package": "com.emblemcards.app",
-      "versionCode": 1,
+      "package": "com.emblemcards.game",
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0b0d12"
       }
     },
     "ios": {
-      "bundleIdentifier": "com.emblemcards.app",
+      "bundleIdentifier": "com.emblemcards.game",
       "supportsTablet": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
+          }
+        }
+      ]
+    ]
   }
 }

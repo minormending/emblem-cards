@@ -97,7 +97,7 @@ def feature_graphic():
         tag_font = ImageFont.load_default()
 
     title = 'EMBLEM CARDS'
-    tag = 'Tactical card battles inspired by Fire Emblem.'
+    tag = 'Tactical card battles. Deploy, attack, outwit.'
     # Measure titles and center the right-side text block between the emblem
     # (~x=260) and the right edge so nothing clips on narrow canvases.
     tbox = draw.textbbox((0, 0), title, font=title_font)

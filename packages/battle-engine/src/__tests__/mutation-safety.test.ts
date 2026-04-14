@@ -57,7 +57,7 @@ describe("Mutation safety", () => {
     expect(copyB.stats.hp).toBe(25);
   });
 
-  it("using real card data: two copies of Hawkeye on the field remain independent", async () => {
+  it("using real card data: two copies of the Berserker unit on the field remain independent", async () => {
     const { units } = await import("@cards/card-engine");
     const hawkeye = units.find((u) => u.id === "berserker-hawkeye")!;
     const marth = units.find((u) => u.id === "lord-marth")!;

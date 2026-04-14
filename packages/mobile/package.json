@@ -16,6 +16,7 @@
     "@cards/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "2.1.2",
     "expo": "~52.0.46",
+    "expo-build-properties": "^55.0.13",
     "expo-clipboard": "~7.0.1",
     "expo-haptics": "~14.0.1",
     "expo-status-bar": "~2.0.1",

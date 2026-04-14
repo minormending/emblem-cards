@@ -70,7 +70,7 @@ export function Menu() {
         <h1 className="text-5xl font-black tracking-tight bg-gradient-to-r from-amber-300 via-red-400 to-purple-400 bg-clip-text text-transparent mb-2">
           Emblem Cards
         </h1>
-        <p className="text-sm text-white/30">Tactical card battles inspired by Fire Emblem</p>
+        <p className="text-sm text-white/30">Tactical card battles on a 2×3 grid</p>
       </div>
 
       {/* Identity card */}

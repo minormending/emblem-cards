@@ -2,7 +2,7 @@
   {
     "type": "unit",
     "id": "lord-marth",
-    "name": "Marth",
+    "name": "Sword Lord",
     "class": "Lord",
     "attackType": "sword",
     "maxHp": 22,
@@ -11,12 +11,12 @@
     "effects": [],
     "cost": 3,
     "isLord": true,
-    "flavor": "The exiled prince who would unite nations."
+    "flavor": "Exiled heir forging a new alliance."
   },
   {
     "type": "unit",
     "id": "lord-ephraim",
-    "name": "Ephraim",
+    "name": "Lance Lord",
     "class": "Lord",
     "attackType": "lance",
     "maxHp": 24,
@@ -25,12 +25,12 @@
     "effects": [],
     "cost": 4,
     "isLord": true,
-    "flavor": "He does not pick fights he cannot win."
+    "flavor": "Takes ground. Then holds it."
   },
   {
     "type": "unit",
     "id": "swordmaster-karel",
-    "name": "Karel",
+    "name": "Swordmaster",
     "class": "Swordmaster",
     "attackType": "sword",
     "maxHp": 16,
@@ -39,12 +39,12 @@
     "effects": [{ "kind": "double_attack" }],
     "cost": 4,
     "isLord": false,
-    "flavor": "The Sword Demon. His blade strikes twice."
+    "flavor": "Strikes twice. Twice is enough."
   },
   {
     "type": "unit",
     "id": "thief-matthew",
-    "name": "Matthew",
+    "name": "Thief",
     "class": "Thief",
     "attackType": "sword",
     "maxHp": 14,
@@ -53,12 +53,12 @@
     "effects": [{ "kind": "draw_cards", "amount": 1 }],
     "cost": 2,
     "isLord": false,
-    "flavor": "Steals secrets before steel."
+    "flavor": "Slips past the line before anyone notices."
   },
   {
     "type": "unit",
     "id": "berserker-hawkeye",
-    "name": "Hawkeye",
+    "name": "Berserker",
     "class": "Berserker",
     "attackType": "axe",
     "maxHp": 28,
@@ -67,12 +67,12 @@
     "effects": [],
     "cost": 4,
     "isLord": false,
-    "flavor": "Guardian of the desert. Every swing is final."
+    "flavor": "Every swing is final."
   },
   {
     "type": "unit",
     "id": "knight-oswin",
-    "name": "Oswin",
+    "name": "Knight",
     "class": "Knight",
     "attackType": "lance",
     "maxHp": 30,
@@ -81,12 +81,12 @@
     "effects": [],
     "cost": 4,
     "isLord": false,
-    "flavor": "A wall of steel. Nothing passes his guard."
+    "flavor": "A wall of plate. Nothing passes."
   },
   {
     "type": "unit",
     "id": "archer-wil",
-    "name": "Wil",
+    "name": "Archer",
     "class": "Archer",
     "attackType": "bow",
     "maxHp": 18,
@@ -103,7 +103,7 @@
   {
     "type": "unit",
     "id": "pegasus-florina",
-    "name": "Florina",
+    "name": "Pegasus Knight",
     "class": "Pegasus Knight",
     "attackType": "lance",
     "maxHp": 17,
@@ -112,12 +112,12 @@
     "effects": [{ "kind": "flying" }],
     "cost": 3,
     "isLord": false,
-    "flavor": "Shy on the ground, fearless in the sky."
+    "flavor": "Fearless above the clouds."
   },
   {
     "type": "unit",
     "id": "wyvern-heath",
-    "name": "Heath",
+    "name": "Wyvern Rider",
     "class": "Wyvern Rider",
     "attackType": "lance",
     "maxHp": 24,
@@ -126,12 +126,12 @@
     "effects": [{ "kind": "flying" }],
     "cost": 4,
     "isLord": false,
-    "flavor": "A deserter who rides against his homeland."
+    "flavor": "Scaled wings and armored claws."
   },
   {
     "type": "unit",
     "id": "mage-lilina",
-    "name": "Lilina",
+    "name": "Fire Mage",
     "class": "Mage",
     "attackType": "fire",
     "maxHp": 14,
@@ -140,12 +140,12 @@
     "effects": [{ "kind": "ranged" }],
     "cost": 3,
     "isLord": false,
-    "flavor": "Her flames rival legends."
+    "flavor": "Flames that rival legend."
   },
   {
     "type": "unit",
     "id": "mage-nino",
-    "name": "Nino",
+    "name": "Wind Mage",
     "class": "Mage",
     "attackType": "wind",
     "maxHp": 13,
@@ -154,12 +154,12 @@
     "effects": [{ "kind": "ranged" }],
     "cost": 3,
     "isLord": false,
-    "flavor": "She does her best. And her best is devastating."
+    "flavor": "Cuts faster than the eye can follow."
   },
   {
     "type": "unit",
     "id": "mage-lugh",
-    "name": "Lugh",
+    "name": "Thunder Mage",
     "class": "Mage",
     "attackType": "thunder",
     "maxHp": 15,
@@ -168,12 +168,12 @@
     "effects": [{ "kind": "ranged" }],
     "cost": 3,
     "isLord": false,
-    "flavor": "Sparks in his hands and hope in his heart."
+    "flavor": "Sparks in hand, storm in reserve."
   },
   {
     "type": "unit",
     "id": "cleric-serra",
-    "name": "Serra",
+    "name": "Cleric",
     "class": "Cleric",
     "attackType": "fire",
     "maxHp": 13,
@@ -182,12 +182,12 @@
     "effects": [{ "kind": "heal_adjacent", "amount": 5 }],
     "cost": 2,
     "isLord": false,
-    "flavor": "The reason your units survive."
+    "flavor": "Why your line holds another turn."
   },
   {
     "type": "unit",
     "id": "general-wallace",
-    "name": "Wallace",
+    "name": "General",
     "class": "General",
     "attackType": "axe",
     "maxHp": 26,
@@ -196,12 +196,12 @@
     "effects": [],
     "cost": 4,
     "isLord": false,
-    "flavor": "Ironwall. The enemy breaks before he does."
+    "flavor": "The enemy breaks before he does."
   },
   {
     "type": "unit",
     "id": "mercenary-raven",
-    "name": "Raven",
+    "name": "Mercenary",
     "class": "Mercenary",
     "attackType": "sword",
     "maxHp": 20,
@@ -210,12 +210,12 @@
     "effects": [],
     "cost": 3,
     "isLord": false,
-    "flavor": "Coin today. Vengeance tomorrow."
+    "flavor": "Paid in gold. Pays back in steel."
   },
   {
     "type": "unit",
     "id": "troubadour-priscilla",
-    "name": "Priscilla",
+    "name": "Troubadour",
     "class": "Troubadour",
     "attackType": "wind",
     "maxHp": 16,
@@ -229,7 +229,7 @@
   {
     "type": "unit",
     "id": "shaman-canas",
-    "name": "Canas",
+    "name": "Shaman",
     "class": "Shaman",
     "attackType": "thunder",
     "maxHp": 14,
