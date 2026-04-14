@@ -9,6 +9,11 @@ const SERVER_URL =
       ? window.location.origin
       : "");
 
+// When the app is hosted behind a path prefix (e.g. /emblem/ on a multi-app
+// gateway), socket.io needs to be told where its endpoint lives. Defaults to
+// the socket.io default so local dev requires no config.
+const SOCKET_PATH = import.meta.env.VITE_SOCKET_PATH || "/socket.io/";
+
 export type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 let socket: GameSocket | null = null;
@@ -17,6 +22,7 @@ export function getSocket(): GameSocket {
   if (!socket) {
     socket = io(SERVER_URL, {
       autoConnect: false,
+      path: SOCKET_PATH,
       transports: ["websocket"],
     });
   }

@@ -29,6 +29,7 @@ export function getSocket(): GameSocket {
     activeUrl = url;
     socket = io(url, {
       autoConnect: false,
+      path: process.env.EXPO_PUBLIC_SOCKET_PATH || '/socket.io/',
       transports: ['websocket'],
     });
   }

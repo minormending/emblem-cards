@@ -23,6 +23,10 @@ interface GameStore {
   gameState: GameState | null;
   gameView: GameView | null;
   queuePosition: number;
+  /** Private room code, set when hosting or joining via code. */
+  roomCode: string | null;
+  /** 'queue' = public matchmaking, 'host' = waiting for friend, 'guest' = joining. */
+  roomRole: 'queue' | 'host' | 'guest' | null;
   /** Socket lifecycle state, surfaced so Matchmaking can show meaningful text. */
   connectionStatus: 'idle' | 'connecting' | 'connected' | 'error';
   connectionError: string | null;
@@ -44,6 +48,9 @@ interface GameStore {
   startLocalBattle: () => void;
   joinQueue: () => void;
   leaveQueue: () => void;
+  createRoom: () => void;
+  joinRoom: (code: string) => void;
+  leaveRoom: () => void;
   exitGame: () => void;
   rematch: () => void;
   /** Restore a previously-saved local/AI battle. Call after hydration. */
@@ -74,6 +81,44 @@ const FRESH_UI_STATE = {
   inspectedCard: null,
 } as const;
 
+/** Shared online-action setup: connect if needed, auth, run afterAuth. */
+function connectAndRun(
+  afterAuth: (socket: ReturnType<typeof getSocket>) => void,
+): void {
+  const socket = getSocket();
+
+  const sendAuth = () => {
+    useGameStore.setState({ connectionStatus: 'connected', connectionError: null });
+    socket.emit('auth', {
+      playerId: getPlayerId(),
+      displayName: getDisplayName(),
+    });
+    socket.once('auth:ok', () => afterAuth(socket));
+    socket.once('auth:error', (msg) => {
+      useGameStore.getState().showMessage(`Auth failed: ${msg}`);
+      useGameStore.setState({ screen: 'deck-builder' });
+    });
+  };
+
+  if (!socket.connected) {
+    import('./socketListeners').then(({ attachSocketListeners }) => {
+      attachSocketListeners(socket, useGameStore);
+    });
+    socket.once('connect', sendAuth);
+    socket.once('connect_error', (err: Error) => {
+      useGameStore.setState({
+        connectionStatus: 'error',
+        connectionError: err.message || 'Connection failed',
+      });
+    });
+    socket.connect();
+  } else {
+    sendAuth();
+  }
+
+  useGameStore.setState({ connectionStatus: 'connecting', connectionError: null });
+}
+
 export const useGameStore = create<GameStore>((set, get) => {
   let cachedMode: GameMode | null = null;
   let cachedActions: GameActions | null = null;
@@ -98,6 +143,8 @@ export const useGameStore = create<GameStore>((set, get) => {
     gameState: null,
     gameView: null,
     queuePosition: 0,
+    roomCode: null,
+    roomRole: null,
     connectionStatus: 'idle',
     connectionError: null,
     ...FRESH_UI_STATE,
@@ -156,46 +203,41 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     joinQueue: () => {
       const { p1Deck } = get();
-      const socket = getSocket();
-      const sendAuthAndJoin = () => {
-        set({ connectionStatus: 'connected', connectionError: null });
-        socket.emit('auth', {
-          playerId: getPlayerId(),
-          displayName: getDisplayName(),
-        });
-        socket.once('auth:ok', () => socket.emit('queue:join', p1Deck));
-        socket.once('auth:error', (msg) => {
-          get().showMessage(`Auth failed: ${msg}`);
-          set({ screen: 'deck-builder' });
-        });
-      };
-      if (!socket.connected) {
-        import('./socketListeners').then(({ attachSocketListeners }) => {
-          attachSocketListeners(socket, useGameStore);
-        });
-        socket.once('connect', sendAuthAndJoin);
-        socket.once('connect_error', (err: Error) => {
-          set({
-            connectionStatus: 'error',
-            connectionError: err.message || 'Connection failed',
-          });
-        });
-        socket.connect();
-      } else {
-        sendAuthAndJoin();
-      }
+      connectAndRun((socket) => socket.emit('queue:join', p1Deck));
       set({
         screen: 'matchmaking',
         queuePosition: 0,
-        connectionStatus: 'connecting',
-        connectionError: null,
+        roomRole: 'queue',
+        roomCode: null,
       });
     },
 
     leaveQueue: () => {
       const socket = getSocket();
       if (socket.connected) socket.emit('queue:leave');
-      set({ screen: 'deck-builder', queuePosition: 0 });
+      set({ screen: 'deck-builder', queuePosition: 0, roomRole: null });
+    },
+
+    createRoom: () => {
+      const { p1Deck } = get();
+      connectAndRun((socket) => socket.emit('room:create', p1Deck));
+      set({ screen: 'matchmaking', roomRole: 'host', roomCode: null });
+    },
+
+    joinRoom: (code: string) => {
+      const { p1Deck } = get();
+      connectAndRun((socket) => socket.emit('room:join', { code, deck: p1Deck }));
+      set({
+        screen: 'matchmaking',
+        roomRole: 'guest',
+        roomCode: code.toUpperCase(),
+      });
+    },
+
+    leaveRoom: () => {
+      const socket = getSocket();
+      if (socket.connected) socket.emit('room:leave');
+      set({ screen: 'deck-builder', roomRole: null, roomCode: null });
     },
 
     exitGame: () => {
@@ -208,6 +250,8 @@ export const useGameStore = create<GameStore>((set, get) => {
         gameState: null,
         gameView: null,
         queuePosition: 0,
+        roomCode: null,
+        roomRole: null,
         connectionStatus: 'idle',
         connectionError: null,
         ...FRESH_UI_STATE,

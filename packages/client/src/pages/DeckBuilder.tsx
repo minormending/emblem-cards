@@ -155,7 +155,7 @@ function DeckPanel({
 }
 
 export function DeckBuilder() {
-  const { p1Deck, p2Deck, setP1Deck, setP2Deck, startLocalBattle, joinQueue, mode, setScreen } = useGameStore();
+  const { p1Deck, p2Deck, setP1Deck, setP2Deck, startLocalBattle, joinQueue, createRoom, joinRoom, mode, roomRole, roomCode, setScreen } = useGameStore();
   const singleDeck = mode === "online" || mode === "ai";
   const [activeTab, setActiveTab] = useState(0);
   const [buildingFor, setBuildingFor] = useState<1 | 2>(1);
@@ -195,7 +195,13 @@ export function DeckBuilder() {
     if (goingToBattle) return;
     setGoingToBattle(true);
     if (mode === "online") {
-      joinQueue();
+      if (roomRole === "host") {
+        createRoom();
+      } else if (roomRole === "guest" && roomCode) {
+        joinRoom(roomCode);
+      } else {
+        joinQueue();
+      }
     } else if (mode === "ai") {
       // Give AI a random deck and start in one synchronous sequence
       setP2Deck(buildRandomDeck());
@@ -226,7 +232,11 @@ export function DeckBuilder() {
           <h1 className="text-xl font-bold tracking-tight">Deck Builder</h1>
           {mode === "online" && (
             <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-full px-2 py-0.5">
-              Online
+              {roomRole === "host"
+                ? "Play with Friend"
+                : roomRole === "guest"
+                  ? `Join ${roomCode ?? ""}`
+                  : "Online"}
             </span>
           )}
           {mode === "ai" && (
@@ -259,7 +269,13 @@ export function DeckBuilder() {
                 : "bg-gray-800 text-gray-600 cursor-not-allowed"
             }`}
           >
-            {mode === "online" ? "Find Match" : "Battle!"}
+            {mode === "online"
+              ? roomRole === "host"
+                ? "Create Room"
+                : roomRole === "guest"
+                  ? "Join Game"
+                  : "Find Match"
+              : "Battle!"}
           </button>
         </div>
       </div>

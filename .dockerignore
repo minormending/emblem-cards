@@ -4,6 +4,7 @@
 **/.turbo
 **/.vite
 **/coverage
+**/*.tsbuildinfo
 **/.DS_Store
 .git
 .github

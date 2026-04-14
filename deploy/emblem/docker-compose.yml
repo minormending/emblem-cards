@@ -1,0 +1,58 @@
+# Emblem Cards — runs behind the shared gateway on /emblem/.
+#
+# Neither service binds a host port. Both attach to the external `gateway`
+# network so the gateway Caddy can reach them by container name.
+services:
+  emblem-server:
+    image: ghcr.io/${GH_REPO}/server:${IMAGE_TAG:-latest}
+    container_name: emblem-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      CLIENT_ORIGIN: "https://${SITE_ADDRESS}"
+    networks:
+      - gateway
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 384M
+
+  emblem-web:
+    image: ghcr.io/${GH_REPO}/client:${IMAGE_TAG:-latest}
+    container_name: emblem-web
+    restart: unless-stopped
+    depends_on:
+      - emblem-server
+    networks:
+      - gateway
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+
+networks:
+  gateway:
+    name: gateway
+    external: true

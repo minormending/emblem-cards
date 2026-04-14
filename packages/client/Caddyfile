@@ -1,0 +1,9 @@
+# Thin static-file server for the emblem-cards client. TLS, security headers,
+# and socket.io proxying all live in the gateway Caddy — this one just serves
+# the Vite build output.
+:80 {
+	encode zstd gzip
+	root * /srv
+	try_files {path} /index.html
+	file_server
+}

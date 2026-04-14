@@ -73,6 +73,8 @@ export function Menu() {
   const [draftName, setDraftName] = useState(name);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [showJoin, setShowJoin] = useState(false);
 
   useEffect(() => {
     if (!hasSeenTutorial()) setShowTutorial(true);
@@ -108,8 +110,22 @@ export function Menu() {
   });
   const goOnline = nav(() => {
     setMode('online');
+    useGameStore.setState({ roomRole: 'queue', roomCode: null });
     setScreen('deck-builder');
   });
+  const goHost = nav(() => {
+    setMode('online');
+    useGameStore.setState({ roomRole: 'host', roomCode: null });
+    setScreen('deck-builder');
+  });
+  const goJoin = () => {
+    const code = joinCode.trim().toUpperCase();
+    if (code.length !== 4) return;
+    sfx.select();
+    setMode('online');
+    useGameStore.setState({ roomRole: 'guest', roomCode: code });
+    setScreen('deck-builder');
+  };
   const goAI = nav(() => {
     setMode('ai');
     setScreen('deck-builder');
@@ -233,12 +249,55 @@ export function Menu() {
         <Text style={styles.hint}>Two players, one screen</Text>
 
         <Pressable
-          style={({ pressed }) => [styles.grayBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.purpleBtn, pressed && styles.pressed]}
+          onPress={goHost}
+        >
+          <Text style={styles.purpleBtnText}>Play with Friend</Text>
+        </Pressable>
+        <Text style={styles.hint}>Get a code to share with your friend</Text>
+
+        {showJoin ? (
+          <View style={styles.joinRow}>
+            <TextInput
+              autoFocus
+              value={joinCode}
+              onChangeText={(v) => setJoinCode(v.toUpperCase().slice(0, 4))}
+              onSubmitEditing={goJoin}
+              placeholder="CODE"
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={4}
+              style={styles.codeInput}
+            />
+            <Pressable
+              onPress={goJoin}
+              disabled={joinCode.trim().length !== 4}
+              style={({ pressed }) => [
+                styles.joinGoBtn,
+                joinCode.trim().length !== 4 && styles.joinGoBtnDisabled,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.joinGoText}>Go</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            style={({ pressed }) => [styles.grayBtn, pressed && styles.pressed]}
+            onPress={() => setShowJoin(true)}
+          >
+            <Text style={styles.grayBtnText}>Join with Code</Text>
+          </Pressable>
+        )}
+        <Text style={styles.hint}>Enter a 4-letter code from a friend</Text>
+
+        <Pressable
+          style={({ pressed }) => [styles.subtleBtn, pressed && styles.pressed]}
           onPress={goOnline}
         >
-          <Text style={styles.grayBtnText}>Online</Text>
+          <Text style={styles.subtleBtnText}>Random online match</Text>
         </Pressable>
-        <Text style={styles.hint}>Build a deck, find an opponent</Text>
 
         <View style={styles.divider} />
 
@@ -353,6 +412,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   grayBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  purpleBtn: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#9333ea',
+    alignItems: 'center',
+  },
+  purpleBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  subtleBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  subtleBtnText: { color: 'rgba(255,255,255,0.45)', fontSize: 12 },
+  joinRow: { flexDirection: 'row', gap: 8 },
+  codeInput: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(168,85,247,0.4)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    color: '#fff',
+    fontFamily: 'Menlo',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 8,
+    textAlign: 'center',
+  },
+  joinGoBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#9333ea',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinGoBtnDisabled: { opacity: 0.3 },
+  joinGoText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   pressed: { opacity: 0.7 },
   divider: {
     height: 1,

@@ -13,6 +13,8 @@ export function attachSocketListeners(socket: GameSocket, store: StoreApi): void
   socket.off('auth:ok');
   socket.off('auth:error');
   socket.off('disconnect');
+  socket.off('room:created');
+  socket.off('room:error');
 
   socket.on('disconnect', () => {
     store.setState({ connectionStatus: 'error', connectionError: 'Disconnected' });
@@ -36,4 +38,13 @@ export function attachSocketListeners(socket: GameSocket, store: StoreApi): void
     }
   });
   socket.on('game:over', () => {});
+
+  socket.on('room:created', ({ code }) => {
+    store.setState({ roomCode: code });
+  });
+
+  socket.on('room:error', (message) => {
+    store.getState().showMessage(message);
+    store.setState({ screen: 'deck-builder', roomRole: null, roomCode: null });
+  });
 }

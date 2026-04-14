@@ -165,7 +165,11 @@ export function DeckBuilder() {
     setP2Deck,
     startLocalBattle,
     joinQueue,
+    createRoom,
+    joinRoom,
     mode,
+    roomRole,
+    roomCode,
     setScreen,
   } = useGameStore();
   const singleDeck = mode === 'online' || mode === 'ai';
@@ -206,7 +210,13 @@ export function DeckBuilder() {
 
   function handleGo() {
     if (mode === 'online') {
-      joinQueue();
+      if (roomRole === 'host') {
+        createRoom();
+      } else if (roomRole === 'guest' && roomCode) {
+        joinRoom(roomCode);
+      } else {
+        joinQueue();
+      }
     } else if (mode === 'ai') {
       setP2Deck(buildRandomDeck());
       useGameStore.getState().startLocalBattle();
@@ -231,7 +241,18 @@ export function DeckBuilder() {
             <Text style={styles.backBtn}>Back</Text>
           </Pressable>
           <Text style={styles.title}>Deck Builder</Text>
-          {mode === 'online' && <Badge label="Online" color="#a855f7" />}
+          {mode === 'online' && (
+            <Badge
+              label={
+                roomRole === 'host'
+                  ? 'Play with Friend'
+                  : roomRole === 'guest'
+                    ? `Join ${roomCode ?? ''}`
+                    : 'Online'
+              }
+              color="#a855f7"
+            />
+          )}
           {mode === 'ai' && <Badge label="VS CPU" color="#3b82f6" />}
         </View>
         <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -262,7 +283,13 @@ export function DeckBuilder() {
             ]}
           >
             <Text style={styles.battleBtnText}>
-              {mode === 'online' ? 'Find Match' : 'Battle'}
+              {mode === 'online'
+                ? roomRole === 'host'
+                  ? 'Create Room'
+                  : roomRole === 'guest'
+                    ? 'Join Game'
+                    : 'Find Match'
+                : 'Battle'}
             </Text>
           </Pressable>
         </View>

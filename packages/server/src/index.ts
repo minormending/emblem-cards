@@ -6,6 +6,8 @@ import { GameRoom } from "./GameRoom.js";
 import { MatchmakingQueue } from "./matchmaking.js";
 import { validateDeck, isValidFieldPosition, isValidHandIndex } from "./validate.js";
 import { SessionStore, validateAuth } from "./sessions.js";
+import { PrivateRoomStore, isValidCodeFormat, normalizeCode } from "./privateRooms.js";
+import { allow as rateAllow, release as rateRelease } from "./rateLimit.js";
 import { log } from "./logger.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
@@ -38,6 +40,7 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
 
 const sessions = new SessionStore();
 const queue = new MatchmakingQueue();
+const privateRooms = new PrivateRoomStore();
 const rooms = new Map<string, GameRoom>();
 const playerRooms = new Map<string, string>();
 
@@ -73,6 +76,15 @@ function shortId(id: string | undefined | null): string {
 
 io.on("connection", (socket) => {
   log.info("connect", `${socket.id} connected`);
+
+  // Rate-limit every inbound event. A misbehaving client gets disconnected
+  // on sustained overage rather than just dropped events — cheaper to kick
+  // than to keep validating.
+  socket.use((_event, next) => {
+    if (rateAllow(socket.id)) return next();
+    log.warn("rate", `${socket.id} rate-limited, disconnecting`);
+    socket.disconnect(true);
+  });
 
   // ── Auth ──
 
@@ -122,6 +134,70 @@ io.on("connection", (socket) => {
   socket.on("queue:leave", () => {
     const playerId = requireAuth(socket);
     if (playerId) queue.remove(playerId);
+  });
+
+  // ── Private rooms (play with a friend via share code) ──
+
+  socket.on("room:create", (deck) => {
+    const playerId = requireAuthOrError(socket);
+    if (!playerId) return;
+
+    const deckCheck = validateDeck(deck);
+    if (!deckCheck.ok) {
+      socket.emit("room:error", deckCheck.error);
+      return;
+    }
+
+    // If they were queued publicly, take them out — one mode at a time.
+    queue.remove(playerId);
+    privateRooms.sweep();
+
+    const room = privateRooms.create(playerId, deckCheck.cards);
+    socket.emit("room:created", { code: room.code });
+    log.info("room", `${shortId(playerId)} created room ${room.code}`);
+  });
+
+  socket.on("room:join", (data) => {
+    const playerId = requireAuthOrError(socket);
+    if (!playerId) return;
+
+    const code = normalizeCode(data?.code);
+    if (!isValidCodeFormat(code)) {
+      socket.emit("room:error", "Invalid code format");
+      return;
+    }
+
+    const deckCheck = validateDeck(data?.deck);
+    if (!deckCheck.ok) {
+      socket.emit("room:error", deckCheck.error);
+      return;
+    }
+
+    const pending = privateRooms.find(code);
+    if (!pending) {
+      socket.emit("room:error", "Room not found or expired");
+      return;
+    }
+    if (pending.hostId === playerId) {
+      socket.emit("room:error", "You can't join your own room");
+      return;
+    }
+
+    // Consume the room — subsequent join attempts should 404.
+    privateRooms.remove(code);
+    queue.remove(playerId);
+
+    startMatch(
+      { playerId: pending.hostId, deck: pending.hostDeck },
+      { playerId, deck: deckCheck.cards },
+    );
+  });
+
+  socket.on("room:leave", () => {
+    const playerId = requireAuth(socket);
+    if (!playerId) return;
+    const removed = privateRooms.removeByHost(playerId);
+    if (removed) log.info("room", `${shortId(playerId)} cancelled room ${removed.code}`);
   });
 
   // ── Game actions ──
@@ -191,12 +267,14 @@ io.on("connection", (socket) => {
   // ── Disconnect ──
 
   socket.on("disconnect", () => {
+    rateRelease(socket.id);
     const session = sessions.removeBySocket(socket.id);
     const playerId = session?.playerId;
     log.info("disconnect", `${socket.id} disconnected`, { playerId: shortId(playerId) });
 
     if (!playerId) return;
     queue.remove(playerId);
+    privateRooms.removeByHost(playerId);
 
     const roomId = playerRooms.get(playerId);
     if (!roomId) return;
@@ -272,28 +350,40 @@ function requireGameContext(socket: {
 function tryStartMatch(): void {
   const match = queue.tryMatch();
   if (!match) return;
-
   const [p1, p2] = match;
+  // MatchmakingQueue uses `socketId` as the field name, but actually stores playerId.
+  startMatch(
+    { playerId: p1.socketId, deck: p1.deck },
+    { playerId: p2.socketId, deck: p2.deck },
+  );
+}
+
+interface MatchSeat {
+  playerId: string;
+  deck: import("@cards/shared").Card[];
+}
+
+function startMatch(p1: MatchSeat, p2: MatchSeat): void {
   roomCounter++;
   const roomId = `room-${roomCounter}`;
 
-  const p1Name = sessions.getByPlayer(p1.socketId)?.displayName ?? "Player 1";
-  const p2Name = sessions.getByPlayer(p2.socketId)?.displayName ?? "Player 2";
+  const p1Name = sessions.getByPlayer(p1.playerId)?.displayName ?? "Player 1";
+  const p2Name = sessions.getByPlayer(p2.playerId)?.displayName ?? "Player 2";
 
-  const room = new GameRoom(roomId, p1.socketId, p1.deck, p2.socketId, p2.deck, p1Name, p2Name);
+  const room = new GameRoom(roomId, p1.playerId, p1.deck, p2.playerId, p2.deck, p1Name, p2Name);
   rooms.set(roomId, room);
-  playerRooms.set(p1.socketId, roomId);
-  playerRooms.set(p2.socketId, roomId);
+  playerRooms.set(p1.playerId, roomId);
+  playerRooms.set(p2.playerId, roomId);
 
-  const p1Socket = socketIdFor(p1.socketId);
-  const p2Socket = socketIdFor(p2.socketId);
+  const p1Socket = socketIdFor(p1.playerId);
+  const p2Socket = socketIdFor(p2.playerId);
   if (p1Socket) io.sockets.sockets.get(p1Socket)?.join(roomId);
   if (p2Socket) io.sockets.sockets.get(p2Socket)?.join(roomId);
 
   log.info("match", `${p1Name} vs ${p2Name}`, { roomId });
 
-  if (p1Socket) io.to(p1Socket).emit("game:start", room.getView(p1.socketId));
-  if (p2Socket) io.to(p2Socket).emit("game:start", room.getView(p2.socketId));
+  if (p1Socket) io.to(p1Socket).emit("game:start", room.getView(p1.playerId));
+  if (p2Socket) io.to(p2Socket).emit("game:start", room.getView(p2.playerId));
 }
 
 httpServer.listen(PORT, () => {

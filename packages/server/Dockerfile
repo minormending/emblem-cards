@@ -18,7 +18,7 @@ COPY packages/shared packages/shared
 COPY packages/card-engine packages/card-engine
 COPY packages/battle-engine packages/battle-engine
 COPY packages/server packages/server
-RUN pnpm --filter @cards/server... build
+RUN pnpm exec turbo run build --filter=@cards/server
 RUN pnpm --filter=@cards/server deploy --prod /out
 
 FROM node:22-slim AS runtime

@@ -1,0 +1,40 @@
+# Shared gateway: one Caddy, owns :80 and :443, routes to every app on the
+# droplet by URL path. Add a new app by attaching its containers to the
+# `gateway` external network and adding a handle_path block in the Caddyfile.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./landing:/srv/landing:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - gateway
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+networks:
+  gateway:
+    name: gateway
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:

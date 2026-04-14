@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Apps</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: linear-gradient(180deg, #0a0a0e 0%, #12121a 100%);
+    color: #e5e7eb;
+    padding: 24px;
+  }
+  main { width: 100%; max-width: 480px; }
+  h1 {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin: 0 0 16px;
+  }
+  ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  a.card {
+    display: block;
+    padding: 20px;
+    background: #1a1a24;
+    border: 1px solid #27272f;
+    border-radius: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 120ms, transform 120ms;
+  }
+  a.card:hover { border-color: #4b5563; transform: translateY(-1px); }
+  .name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .desc { font-size: 13px; color: #9ca3af; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Apps</h1>
+  <ul>
+    <li><a class="card" href="/emblem/">
+      <div class="name">Emblem Cards</div>
+      <div class="desc">Tactical card battles on a 2×3 grid</div>
+    </a></li>
+    <li><a class="card" href="/dcc/">
+      <div class="name">Dungeon Crawler Carl</div>
+      <div class="desc">Dungeon-crawling fan game</div>
+    </a></li>
+  </ul>
+</main>
+</body>
+</html>

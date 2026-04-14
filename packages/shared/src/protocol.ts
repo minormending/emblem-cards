@@ -16,6 +16,12 @@ export interface ClientToServerEvents {
   "queue:join": (deck: Card[]) => void;
   /** Leave the matchmaking queue */
   "queue:leave": () => void;
+  /** Create a private room; server replies with a short code */
+  "room:create": (deck: Card[]) => void;
+  /** Join an existing private room by code */
+  "room:join": (data: { code: string; deck: Card[] }) => void;
+  /** Leave a private room before the game starts */
+  "room:leave": () => void;
   /** Deploy a card from hand */
   "game:deploy": (handIndex: number, target?: FieldPosition) => void;
   /** Attack with a unit */
@@ -67,4 +73,8 @@ export interface ServerToClientEvents {
   "game:over": (data: { winner: string; turnCount: number }) => void;
   /** Queue position updated */
   "queue:update": (data: { position: number }) => void;
+  /** Private room created; share this code with your opponent. */
+  "room:created": (data: { code: string }) => void;
+  /** Attempt to join or create a room failed. */
+  "room:error": (message: string) => void;
 }

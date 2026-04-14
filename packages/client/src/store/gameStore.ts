@@ -41,6 +41,10 @@ interface GameStore {
   gameState: GameState | null;  // local / ai
   gameView: GameView | null;    // online
   queuePosition: number;
+  /** Private room code, set when hosting or joining via code. */
+  roomCode: string | null;
+  /** 'queue' = public matchmaking, 'host' = waiting for friend, 'guest' = joining. */
+  roomRole: "queue" | "host" | "guest" | null;
 
   // ── UI state ──
   selectedHandIndex: number | null;
@@ -66,6 +70,9 @@ interface GameStore {
   startLocalBattle: () => void;
   joinQueue: () => void;
   leaveQueue: () => void;
+  createRoom: () => void;
+  joinRoom: (code: string) => void;
+  leaveRoom: () => void;
   exitGame: () => void;
 
   // ── Unified actions ──
@@ -97,6 +104,40 @@ const FRESH_UI_STATE = {
   inspectedCard: null,
 } as const;
 
+/**
+ * Connect the socket (if needed), authenticate, then run `afterAuth`. All
+ * online actions (queue join, room create/join) share this setup so the
+ * auth/listener wiring lives in one place.
+ */
+function connectAndRun(
+  afterAuth: (socket: ReturnType<typeof getSocket>) => void,
+): void {
+  const socket = getSocket();
+
+  const sendAuth = () => {
+    socket.emit("auth", {
+      playerId: getPlayerId(),
+      displayName: getDisplayName(),
+    });
+    socket.once("auth:ok", () => afterAuth(socket));
+    socket.once("auth:error", (msg) => {
+      useGameStore.getState().showMessage(`Auth failed: ${msg}`);
+      useGameStore.setState({ screen: "deck-builder" });
+    });
+  };
+
+  if (!socket.connected) {
+    // Lazy import avoids a circular dep with this store.
+    import("./socketListeners").then(({ attachSocketListeners }) => {
+      attachSocketListeners(socket, useGameStore);
+    });
+    socket.once("connect", sendAuth);
+    socket.connect();
+  } else {
+    sendAuth();
+  }
+}
+
 export const useGameStore = create<GameStore>((set, get) => {
   // Cached action implementations — rebuilt lazily when mode changes.
   let cachedMode: GameMode | null = null;
@@ -122,6 +163,8 @@ export const useGameStore = create<GameStore>((set, get) => {
     gameState: null,
     gameView: null,
     queuePosition: 0,
+    roomCode: null,
+    roomRole: null,
     ...FRESH_UI_STATE,
 
     // ── Mutators ──
@@ -179,38 +222,32 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     joinQueue: () => {
       const { p1Deck } = get();
-      const socket = getSocket();
-
-      const sendAuthAndJoin = () => {
-        socket.emit("auth", {
-          playerId: getPlayerId(),
-          displayName: getDisplayName(),
-        });
-        socket.once("auth:ok", () => socket.emit("queue:join", p1Deck));
-        socket.once("auth:error", (msg) => {
-          get().showMessage(`Auth failed: ${msg}`);
-          set({ screen: "deck-builder" });
-        });
-      };
-
-      if (!socket.connected) {
-        // Lazy import to avoid a circular dep with this store
-        import("./socketListeners").then(({ attachSocketListeners }) => {
-          attachSocketListeners(socket, useGameStore);
-        });
-        socket.once("connect", sendAuthAndJoin);
-        socket.connect();
-      } else {
-        sendAuthAndJoin();
-      }
-
-      set({ screen: "matchmaking", queuePosition: 0 });
+      connectAndRun((socket) => socket.emit("queue:join", p1Deck));
+      set({ screen: "matchmaking", queuePosition: 0, roomRole: "queue", roomCode: null });
     },
 
     leaveQueue: () => {
       const socket = getSocket();
       if (socket.connected) socket.emit("queue:leave");
-      set({ screen: "deck-builder", queuePosition: 0 });
+      set({ screen: "deck-builder", queuePosition: 0, roomRole: null });
+    },
+
+    createRoom: () => {
+      const { p1Deck } = get();
+      connectAndRun((socket) => socket.emit("room:create", p1Deck));
+      set({ screen: "matchmaking", roomRole: "host", roomCode: null });
+    },
+
+    joinRoom: (code: string) => {
+      const { p1Deck } = get();
+      connectAndRun((socket) => socket.emit("room:join", { code, deck: p1Deck }));
+      set({ screen: "matchmaking", roomRole: "guest", roomCode: code.toUpperCase() });
+    },
+
+    leaveRoom: () => {
+      const socket = getSocket();
+      if (socket.connected) socket.emit("room:leave");
+      set({ screen: "deck-builder", roomRole: null, roomCode: null });
     },
 
     exitGame: () => {
@@ -220,6 +257,8 @@ export const useGameStore = create<GameStore>((set, get) => {
         gameState: null,
         gameView: null,
         queuePosition: 0,
+        roomCode: null,
+        roomRole: null,
         ...FRESH_UI_STATE,
       });
     },

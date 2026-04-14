@@ -10,6 +10,8 @@ export function Menu() {
   const [name, setName] = useState(getDisplayName());
   const [editingName, setEditingName] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [showJoin, setShowJoin] = useState(false);
 
   // Auto-show tutorial on first-ever visit
   useEffect(() => {
@@ -46,6 +48,21 @@ export function Menu() {
 
   function goOnline() {
     setMode("online");
+    useGameStore.setState({ roomRole: "queue", roomCode: null });
+    setScreen("deck-builder");
+  }
+
+  function goHost() {
+    setMode("online");
+    useGameStore.setState({ roomRole: "host", roomCode: null });
+    setScreen("deck-builder");
+  }
+
+  function goJoin() {
+    const code = joinCode.trim().toUpperCase();
+    if (code.length !== 4) return;
+    setMode("online");
+    useGameStore.setState({ roomRole: "guest", roomCode: code });
     setScreen("deck-builder");
   }
 
@@ -150,15 +167,66 @@ export function Menu() {
         </p>
 
         <button
-          onClick={() => handleClick(goOnline)}
+          onClick={() => handleClick(goHost)}
           disabled={busy}
-          className="w-full py-3 bg-gray-800 hover:bg-gray-700 border border-white/10 rounded-xl font-bold text-sm transition-all disabled:opacity-50"
+          className="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 rounded-xl font-bold text-sm transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50"
         >
-          Online
+          Play with Friend
         </button>
         <p className="text-[11px] text-white/25 text-center -mt-1">
-          Build a deck, find an opponent
+          Get a code to share with your friend
         </p>
+
+        {showJoin ? (
+          <div className="flex gap-2">
+            <input
+              autoFocus
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleClick(goJoin);
+                  setShowJoin(false);
+                }
+                if (e.key === "Escape") {
+                  setShowJoin(false);
+                  setJoinCode("");
+                }
+              }}
+              placeholder="CODE"
+              maxLength={4}
+              className="flex-1 px-3 py-3 bg-black/40 border border-purple-500/40 rounded-xl font-mono text-center tracking-[0.4em] text-lg font-bold outline-none focus:border-purple-400"
+            />
+            <button
+              onClick={() => {
+                if (joinCode.trim().length === 4) handleClick(goJoin);
+              }}
+              disabled={joinCode.trim().length !== 4}
+              className="px-4 py-3 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              Go
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowJoin(true)}
+            disabled={busy}
+            className="w-full py-3 bg-gray-800 hover:bg-gray-700 border border-white/10 rounded-xl font-bold text-sm transition-all disabled:opacity-50"
+          >
+            Join with Code
+          </button>
+        )}
+        <p className="text-[11px] text-white/25 text-center -mt-1">
+          Enter a 4-letter code from a friend
+        </p>
+
+        <button
+          onClick={() => handleClick(goOnline)}
+          disabled={busy}
+          className="w-full py-2 text-xs text-white/40 hover:text-white/70 hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
+        >
+          Random online match
+        </button>
 
         <div className="border-t border-white/5 my-2" />
 

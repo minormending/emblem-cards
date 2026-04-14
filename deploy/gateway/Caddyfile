@@ -1,0 +1,56 @@
+# Gateway Caddy — single TLS endpoint in front of every app on this droplet.
+#
+# Per-app rules strip the path prefix before proxying so each app container
+# sees plain "/" paths. Add a new block for each additional app; Caddy sorts
+# `handle` matchers by specificity automatically.
+#
+# All traffic is encrypted via Let's Encrypt (auto-renewed). The SITE_ADDRESS
+# env var is the sslip.io hostname for the droplet IP.
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Global security headers. Applied to every response, including the
+	# landing page and any app passthrough.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		-Server
+	}
+
+	# ── Emblem Cards ──────────────────────────────────────────────
+	# /emblem/socket.io/* → server container (websockets + long-poll)
+	# /emblem/*           → web container (static Vite build)
+	# handle_path strips the matcher's prefix; the app containers then serve
+	# plain "/"-rooted paths and stay portable across mount points.
+	handle_path /emblem/* {
+		@socketio path /socket.io/*
+		handle @socketio {
+			reverse_proxy emblem-server:3001
+		}
+		handle {
+			reverse_proxy emblem-web:80
+		}
+	}
+
+	# ── Dungeon Crawler Carl ──────────────────────────────────────
+	handle_path /dcc/* {
+		reverse_proxy dcc-web:80
+	}
+
+	# ── Root: tiny landing page listing the apps ──────────────────
+	handle {
+		root * /srv/landing
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# Redirect bare HTTP to HTTPS. Caddy auto-provisions certs; this block just
+# catches any stragglers that somehow reach :80 directly.
+http://{$SITE_ADDRESS} {
+	redir https://{host}{uri} permanent
+}
