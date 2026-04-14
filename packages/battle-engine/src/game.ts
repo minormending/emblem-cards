@@ -88,8 +88,16 @@ function shuffle<T>(arr: T[]): T[] {
 // ── Support-pair predicate ──
 
 /**
- * True when both classes required by a support are present on the field.
- * Same-class pairs (Cavalier+Cavalier) require TWO distinct units of that class.
+ * True when at least one of the support's listed classes is on the field.
+ *
+ * The original design required BOTH classes to be present at the same time,
+ * but with 15-card decks that combo almost never landed — supports felt
+ * like dead draws. This loosens to "either class present" so the support
+ * card activates as soon as one relevant unit is deployed, keeping the
+ * thematic pairing in the card text but making the effect actually reachable.
+ *
+ * Same-class pairs (e.g. Cavalier+Cavalier) still require two distinct
+ * units of that class, since "one of A or B" would otherwise be "one of A".
  */
 export function isSupportPairActive(field: Field, support: SupportCard): boolean {
   const { classA, classB } = support.pairRequirement;
@@ -100,7 +108,7 @@ export function isSupportPairActive(field: Field, support: SupportCard): boolean
   if (classA === classB) {
     return classes.filter((c) => c === classA).length >= 2;
   }
-  return classes.includes(classA) && classes.includes(classB);
+  return classes.includes(classA) || classes.includes(classB);
 }
 
 // ── Draw phase ──

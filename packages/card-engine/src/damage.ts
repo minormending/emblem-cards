@@ -27,11 +27,17 @@ function gatherEffects(unit: UnitCard, weapon: WeaponCard | null): Effect[] {
 }
 
 /**
- * Calculate the total stat boost from a weapon card.
+ * Attack-stat boost from a weapon. STR and MAG are treated as interchangeable
+ * attack-stat labels here: a sword's "+2 STR" still grants +2 MAG when the
+ * wielder attacks magically. Weapons are typed to an attackType so in practice
+ * only one side is authored, but unit cards with mixed STR/MAG should still
+ * get the intended punch.
  */
 function getWeaponBoost(weapon: WeaponCard | null, stat: "str" | "mag"): number {
   if (!weapon) return 0;
-  return weapon.statBoost[stat] ?? 0;
+  const primary = weapon.statBoost[stat] ?? 0;
+  const other = weapon.statBoost[stat === "str" ? "mag" : "str"] ?? 0;
+  return primary || other;
 }
 
 /**

@@ -156,7 +156,9 @@ function SupportCardBody({ card, small }: { card: SupportCard; small?: boolean }
         {card.name}
       </div>
       <div className="text-[11px] text-sky-300 mt-1 bg-sky-500/10 rounded px-1.5 py-0.5 inline-block">
-        {card.pairRequirement.classA} + {card.pairRequirement.classB}
+        {card.pairRequirement.classA === card.pairRequirement.classB
+          ? `2× ${card.pairRequirement.classA}`
+          : `${card.pairRequirement.classA} or ${card.pairRequirement.classB}`}
       </div>
       <EffectsBlock effects={card.effects} />
     </>
