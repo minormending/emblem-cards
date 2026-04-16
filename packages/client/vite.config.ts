@@ -13,7 +13,15 @@ export default defineConfig(({ mode }) => {
     base,
     plugins: [react(), tailwindcss()],
     resolve: {
+      // `react-native-safe-area-context` in the root package.json hoists its
+      // own React into the repo root node_modules. Without dedupe, zustand
+      // (also hoisted) resolves that copy while the client resolves its own,
+      // which breaks hooks. Dedupe forces a single React instance.
       dedupe: ["react", "react-dom"],
+      // Prefer workspace package source over compiled dist so JSON/TS edits
+      // in @cards/* packages are picked up by Vite's dep graph without a
+      // rebuild. See the `exports.source` condition in those packages.
+      conditions: ["source"],
     },
   };
 });

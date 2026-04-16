@@ -32,7 +32,7 @@ export function CardInspector() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="scale-150 origin-center">
-          <CardView card={inspectedCard} fullArt />
+          <CardView card={inspectedCard} detailArt />
         </div>
 
         <button

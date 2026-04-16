@@ -89,7 +89,6 @@ const commonStringFields = {
   id: z.string().min(1),
   name: z.string().min(1),
   cost: z.number().int().nonnegative(),
-  art: z.string().optional(),
   flavor: z.string().optional(),
 };
 

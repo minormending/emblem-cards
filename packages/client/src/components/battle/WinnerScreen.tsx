@@ -62,7 +62,7 @@ export function WinnerScreen({ didWin, winnerName, turnCount, onBackToMenu, stat
         >
           <div className="flex flex-col items-center gap-3">
             <div className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-400">MVP</div>
-            <CardView card={stats.mvp.unit} fullArt />
+            <CardView card={stats.mvp.unit} detailArt />
             <div className="text-sm text-white/70">
               <span className="text-amber-300 font-bold">{stats.mvp.totalDamage}</span> damage dealt
             </div>

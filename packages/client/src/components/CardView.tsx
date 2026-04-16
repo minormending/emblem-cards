@@ -1,7 +1,8 @@
+import clsx from "clsx";
 import type { Card, UnitCard, WeaponCard, ItemCard, SupportCard, TacticCard } from "@cards/shared";
 import { attackTypeBorders, attackTypeLabels } from "../lib/colors";
 import { effectLabel } from "../lib/effects";
-import { CardArt } from "./CardArt";
+import { CardArt, CARD_ART_HEIGHT } from "./CardArt";
 import { useGameStore } from "../store/gameStore";
 
 interface CardViewProps {
@@ -10,15 +11,19 @@ interface CardViewProps {
   selected?: boolean;
   small?: boolean;
   disabled?: boolean;
-  energyShort?: number; // how much energy the player is short (0 = affordable)
-  fullArt?: boolean;
+  /** Energy the player is short by (0 or undefined = affordable). */
+  energyShort?: number;
+  /** Show the full card art at detail height, letterboxed to preserve aspect. */
+  detailArt?: boolean;
 }
 
 function CostBadge({ cost, small }: { cost: number; small?: boolean }) {
-  const size = small ? "w-5 h-5 text-[10px]" : "w-7 h-7 text-sm";
   return (
     <div
-      className={`${size} absolute top-1.5 right-1.5 z-10 rounded-full bg-amber-500 text-gray-900 font-black flex items-center justify-center shadow-md`}
+      className={clsx(
+        "absolute top-1.5 right-1.5 rounded-full bg-amber-500 text-gray-900 font-black flex items-center justify-center shadow-md",
+        small ? "w-5 h-5 text-[10px]" : "w-7 h-7 text-sm",
+      )}
     >
       {cost}
     </div>
@@ -72,7 +77,7 @@ function StatGrid({ stats, compact }: { stats: UnitCard["stats"]; compact?: bool
   return (
     <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-xs bg-black/20 rounded p-1.5">
       {items.map((s) => (
-        <div key={s.label} className={`${s.color} flex justify-between`}>
+        <div key={s.label} className={clsx(s.color, "flex justify-between")}>
           <span className="opacity-60">{s.label}</span>
           <span className="font-bold">{s.value}</span>
         </div>
@@ -104,7 +109,7 @@ function UnitCardBody({ card, small }: { card: UnitCard; small?: boolean }) {
         <span className="text-[10px] opacity-50 uppercase tracking-wide">{card.class}</span>
         <span className="text-[10px] opacity-50">{attackTypeLabels[card.attackType]}</span>
       </div>
-      <div className={`${small ? "text-sm" : "text-base"} font-bold leading-tight`}>
+      <div className={clsx("font-bold leading-tight", small ? "text-sm" : "text-base")}>
         {card.name}
       </div>
       {card.isLord && <div className="mt-1"><LordBadge /></div>}
@@ -128,7 +133,7 @@ function WeaponCardBody({ card, small }: { card: WeaponCard; small?: boolean }) 
         <span className="text-[10px] opacity-50 uppercase tracking-wide">Weapon</span>
         <span className="text-[10px] opacity-50">{attackTypeLabels[card.attackType]}</span>
       </div>
-      <div className={`${small ? "text-sm" : "text-base"} font-bold leading-tight`}>
+      <div className={clsx("font-bold leading-tight", small ? "text-sm" : "text-base")}>
         {card.name}
       </div>
       <div className="text-sm text-emerald-300 font-semibold mt-1">{boosts.join(", ")}</div>
@@ -141,7 +146,7 @@ function SimpleCardBody({ card, label, small }: { card: ItemCard | TacticCard; l
   return (
     <>
       <div className="text-[10px] opacity-50 uppercase tracking-wide mb-0.5">{label}</div>
-      <div className={`${small ? "text-sm" : "text-base"} font-bold leading-tight`}>
+      <div className={clsx("font-bold leading-tight", small ? "text-sm" : "text-base")}>
         {card.name}
       </div>
       <EffectsBlock effects={card.effects} />
@@ -153,7 +158,7 @@ function SupportCardBody({ card, small }: { card: SupportCard; small?: boolean }
   return (
     <>
       <div className="text-[10px] opacity-50 uppercase tracking-wide mb-0.5">Support</div>
-      <div className={`${small ? "text-sm" : "text-base"} font-bold leading-tight`}>
+      <div className={clsx("font-bold leading-tight", small ? "text-sm" : "text-base")}>
         {card.name}
       </div>
       <div className="text-[11px] text-sky-300 mt-1 bg-sky-500/10 rounded px-1.5 py-0.5 inline-block">
@@ -182,17 +187,16 @@ function getCardBg(card: Card): string {
   return "bg-gradient-to-b from-purple-950 to-gray-900";
 }
 
-export function CardView({ card, onClick, selected, small, disabled, energyShort, fullArt }: CardViewProps) {
+function cardArtHeight(small: boolean | undefined, detail: boolean | undefined): number {
+  if (detail) return CARD_ART_HEIGHT.detail;
+  if (small) return CARD_ART_HEIGHT.handSmall;
+  return CARD_ART_HEIGHT.hand;
+}
+
+export function CardView({ card, onClick, selected, small, disabled, energyShort, detailArt }: CardViewProps) {
   const setInspectedCard = useGameStore((s) => s.setInspectedCard);
-  const border = getCardBorder(card);
-  const bg = getCardBg(card);
-  const width = small ? "w-36" : "w-48";
-  const padding = small ? "p-2 pt-3" : "p-3 pt-4";
 
   const inspect = () => setInspectedCard(card);
-
-  // Disabled cards open the inspector on click. Playable cards run onClick.
-  // Right-click always inspects, regardless of state.
   const handleClick = disabled ? inspect : onClick;
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -203,22 +207,24 @@ export function CardView({ card, onClick, selected, small, disabled, energyShort
     <div
       onClick={handleClick}
       onContextMenu={handleContextMenu}
-      className={`
-        ${width} ${padding} ${bg} ${border}
-        relative border-2 rounded-xl select-none group
-        transition-all duration-200 ease-out
-        ${disabled
-          ? "opacity-40 grayscale-[30%] cursor-help"
-          : "cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:shadow-black/40"
-        }
-        ${selected ? "ring-2 ring-mythic ring-offset-1 ring-offset-gray-900 -translate-y-1 shadow-lg shadow-mythic/20" : ""}
-      `}
       title={disabled ? "Click to inspect" : "Right-click to inspect"}
+      className={clsx(
+        "relative border-2 rounded-xl select-none group transition-all duration-200 ease-out",
+        small ? "w-36 p-2 pt-3" : "w-48 p-3 pt-4",
+        getCardBg(card),
+        getCardBorder(card),
+        disabled
+          ? "opacity-40 grayscale-[30%] cursor-help"
+          : "cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:shadow-black/40",
+        selected && "ring-2 ring-mythic ring-offset-1 ring-offset-gray-900 -translate-y-1 shadow-lg shadow-mythic/20",
+      )}
     >
-      <CostBadge cost={card.cost} small={small} />
-
       <div className={small ? "mb-1.5 -mx-0.5" : "mb-2 -mx-1"}>
-        <CardArt card={card} height={small ? 48 : fullArt ? 144 : 72} fullArt={fullArt} />
+        <CardArt
+          card={card}
+          height={cardArtHeight(small, detailArt)}
+          fit={detailArt ? "contain" : "cover"}
+        />
       </div>
 
       {card.type === "unit" && <UnitCardBody card={card} small={small} />}
@@ -230,6 +236,10 @@ export function CardView({ card, onClick, selected, small, disabled, energyShort
       {card.flavor && !small && (
         <div className="text-[10px] italic opacity-25 mt-2 leading-tight">{card.flavor}</div>
       )}
+
+      {/* Cost badge sits last in the DOM so it paints above the art without
+          needing an explicit z-index. */}
+      <CostBadge cost={card.cost} small={small} />
 
       {energyShort != null && energyShort > 0 && (
         <div className="absolute inset-0 rounded-xl bg-black/50 flex items-center justify-center pointer-events-none">

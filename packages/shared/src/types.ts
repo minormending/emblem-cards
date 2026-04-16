@@ -73,7 +73,6 @@ export interface UnitCard {
   effects: Effect[];
   cost: number; // deployment cost
   isLord: boolean;
-  art?: string; // path or URL to card art
   flavor?: string;
 }
 
@@ -85,7 +84,6 @@ export interface WeaponCard {
   statBoost: Partial<Stats>;
   effects: Effect[];
   cost: number;
-  art?: string;
   flavor?: string;
 }
 
@@ -95,7 +93,6 @@ export interface ItemCard {
   name: string;
   effects: Effect[];
   cost: number;
-  art?: string;
   flavor?: string;
 }
 
@@ -107,7 +104,6 @@ export interface SupportCard {
   pairRequirement: { classA: string; classB: string };
   effects: Effect[];
   cost: number;
-  art?: string;
   flavor?: string;
 }
 
@@ -117,7 +113,6 @@ export interface TacticCard {
   name: string;
   effects: Effect[];
   cost: number;
-  art?: string;
   flavor?: string;
 }
 

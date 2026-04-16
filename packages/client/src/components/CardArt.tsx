@@ -1,5 +1,25 @@
-import { useId } from "react";
+import { useId, useState } from "react";
+import clsx from "clsx";
 import type { Card, AttackType } from "@cards/shared";
+
+/**
+ * Standard art-slot heights used across the app. Picked a name for each
+ * context so call sites don't pass raw pixel values.
+ */
+export const CARD_ART_HEIGHT = {
+  handSmall: 48,
+  hand: 72,
+  detail: 144,
+} as const;
+
+/**
+ * Art path convention: PNGs in `packages/client/public/cards/` named `<id>.png`.
+ * Presence is validated by `pnpm cards:check`. At runtime we optimistically
+ * try to load; onError we fall back to the SVG silhouette.
+ */
+function artUrlFor(cardId: string): string {
+  return `/cards/${cardId}.png`;
+}
 
 const attackTypeGradients: Record<AttackType, [string, string]> = {
   sword: ["#991b1b", "#450a0a"],
@@ -24,9 +44,7 @@ function getGradient(card: Card): [string, string] {
   return typeGradients[card.type] ?? ["#374151", "#111827"];
 }
 
-// Simple symbolic icons as SVG paths
 function UnitIcon({ card }: { card: Extract<Card, { type: "unit" }> }) {
-  // Different silhouettes based on class/tags
   if (card.tags.includes("flying")) {
     return (
       <g transform="translate(24, 16) scale(0.52)">
@@ -102,7 +120,6 @@ function UnitIcon({ card }: { card: Extract<Card, { type: "unit" }> }) {
       </g>
     );
   }
-  // Default: sword/lord silhouette
   return (
     <g transform="translate(24, 16) scale(0.52)">
       <circle cx="50" cy="25" r="12" fill="white" fillOpacity="0.15" />
@@ -147,7 +164,6 @@ function WeaponIcon({ card }: { card: Extract<Card, { type: "weapon" }> }) {
       </g>
     );
   }
-  // Tomes (fire/wind/thunder)
   return (
     <g transform="translate(24, 16) scale(0.52)">
       <rect x="30" y="15" width="40" height="55" rx="3" fill="white" fillOpacity="0.15" />
@@ -187,26 +203,61 @@ function TacticIcon() {
   );
 }
 
-interface CardArtProps {
-  card: Card;
-  height?: number;
-  fullArt?: boolean;
+function FallbackIcon({ card }: { card: Card }) {
+  if (card.type === "unit") return <UnitIcon card={card} />;
+  if (card.type === "weapon") return <WeaponIcon card={card} />;
+  if (card.type === "item") return <ItemIcon />;
+  if (card.type === "support") return <SupportIcon />;
+  return <TacticIcon />;
 }
 
-export function CardArt({ card, height = 72, fullArt = false }: CardArtProps) {
+interface CardArtProps {
+  card: Card;
+  /** Pixel height. Ignored when `fill` is true. */
+  height?: number;
+  /** Fill parent's height instead of using `height`. Parent must be sized. */
+  fill?: boolean;
+  /** `cover` crops to fill the slot; `contain` letterboxes. */
+  fit?: "cover" | "contain";
+  /** Vertical alignment when `fit="cover"`. Ignored for `contain`. */
+  align?: "top" | "center";
+}
+
+/**
+ * Renders card art with a gradient/icon fallback underneath. Art is loaded
+ * from `/cards/<id>.png`; if the file is missing, the img unmounts onError
+ * and the SVG silhouette beneath becomes visible.
+ */
+export function CardArt({
+  card,
+  height = CARD_ART_HEIGHT.hand,
+  fill = false,
+  fit = "cover",
+  align = "top",
+}: CardArtProps) {
   const [from, to] = getGradient(card);
-  // Stable, unique id per render — prevents SVG id collisions when the same
-  // card appears multiple times on the field.
+  // Unique ids keep gradients stable when the same card renders multiple times.
   const uid = useId().replace(/:/g, "");
   const gradId = `grad-${uid}`;
   const glowId = `glow-${uid}`;
 
+  const [artFailed, setArtFailed] = useState(false);
+  const showArt = !artFailed;
+  // When cover-fit art is displayed, the img paints over the icon so we can
+  // skip the icon DOM. The gradient itself is cheap and acts as a load/error
+  // fallback background, so it always renders.
+  const showIcon = !showArt || fit === "contain";
+
   return (
-    <div className="relative w-full rounded-lg overflow-hidden" style={{ height }}>
+    <div
+      className={clsx("relative w-full rounded-lg overflow-hidden")}
+      style={fill ? { height: "100%" } : { height }}
+    >
       <svg
         viewBox="0 0 100 80"
         className="absolute inset-0 w-full h-full"
         preserveAspectRatio="xMidYMid slice"
+        aria-hidden
       >
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0.3" y2="1">
@@ -219,53 +270,27 @@ export function CardArt({ card, height = 72, fullArt = false }: CardArtProps) {
           </radialGradient>
         </defs>
         <rect width="100" height="80" fill={`url(#${gradId})`} />
-        {!card.art && (
-          <>
-            {card.type === "unit" && <UnitIcon card={card} />}
-            {card.type === "weapon" && <WeaponIcon card={card} />}
-            {card.type === "item" && <ItemIcon />}
-            {card.type === "support" && <SupportIcon />}
-            {card.type === "tactic" && <TacticIcon />}
-          </>
-        )}
+        {showIcon && <FallbackIcon card={card} />}
         <rect width="100" height="80" fill={`url(#${glowId})`} />
       </svg>
-      {card.art && (
+      {showArt && (
         <img
-          src={card.art}
-          alt=""
-          className={`absolute inset-0 w-full h-full pointer-events-none ${
-            fullArt ? "object-contain" : "object-cover object-top"
-          }`}
-        />
-      )}
-    </div>
-  );
-}
-
-/** Compact version for field slots */
-export function CardArtMini({ card }: { card: Extract<Card, { type: "unit" }> }) {
-  const [from, to] = getGradient(card);
-  const uid = useId().replace(/:/g, "");
-  const gradId = `mgrad-${uid}`;
-
-  return (
-    <div className="relative w-full h-full rounded overflow-hidden">
-      <svg viewBox="0 0 100 80" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0.3" y2="1">
-            <stop offset="0%" stopColor={from} />
-            <stop offset="100%" stopColor={to} />
-          </linearGradient>
-        </defs>
-        <rect width="100" height="80" fill={`url(#${gradId})`} />
-        {!card.art && <UnitIcon card={card} />}
-      </svg>
-      {card.art && (
-        <img
-          src={card.art}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover object-top pointer-events-none"
+          src={artUrlFor(card.id)}
+          alt={card.name}
+          loading="lazy"
+          decoding="async"
+          onError={() => {
+            if (import.meta.env.DEV) {
+              // eslint-disable-next-line no-console
+              console.debug(`[CardArt] no art for "${card.id}" — using icon fallback`);
+            }
+            setArtFailed(true);
+          }}
+          className={clsx(
+            "absolute inset-0 w-full h-full pointer-events-none",
+            fit === "contain" ? "object-contain" : "object-cover",
+            fit === "cover" && (align === "top" ? "object-top" : "object-center"),
+          )}
         />
       )}
     </div>
