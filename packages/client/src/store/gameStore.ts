@@ -20,6 +20,7 @@ import { createGame, drawPhase } from "@cards/battle-engine";
 import { getSocket, disconnectSocket } from "./socket";
 import { buildRandomDeck } from "../lib/deckBuilder";
 import { useLogStore } from "./logStore";
+import { loadDecks, saveDecks } from "../lib/decks";
 import { getPlayerId, getDisplayName } from "../lib/identity";
 import type { GameActions } from "./actions/types";
 import { createLocalActions } from "./actions/local";
@@ -163,12 +164,16 @@ export const useGameStore = create<GameStore>((set, get) => {
     return cachedActions!;
   };
 
+  // Hydrate decks synchronously from localStorage so the deck-builder opens
+  // with whatever the player had last time.
+  const saved = loadDecks();
+
   return {
     // ── Initial state ──
     screen: "menu",
     mode: "local",
-    p1Deck: [],
-    p2Deck: [],
+    p1Deck: saved?.p1Deck ?? [],
+    p2Deck: saved?.p2Deck ?? [],
     gameState: null,
     gameView: null,
     queuePosition: 0,
@@ -275,6 +280,18 @@ export const useGameStore = create<GameStore>((set, get) => {
     // ── Actions ──
     getActions,
   };
+});
+
+// ── Deck auto-save ───────────────────────────────────────────────────────
+// Persist p1Deck/p2Deck on every change. Reference-equal dedupe so unrelated
+// state updates don't thrash localStorage.
+let lastSavedP1: unknown = null;
+let lastSavedP2: unknown = null;
+useGameStore.subscribe((state) => {
+  if (state.p1Deck === lastSavedP1 && state.p2Deck === lastSavedP2) return;
+  lastSavedP1 = state.p1Deck;
+  lastSavedP2 = state.p2Deck;
+  saveDecks(state.p1Deck, state.p2Deck);
 });
 
 // Re-export selectors as named imports from gameStore for convenience.
