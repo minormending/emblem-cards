@@ -12,5 +12,8 @@ export default defineConfig(({ mode }) => {
   return {
     base,
     plugins: [react(), tailwindcss()],
+    resolve: {
+      dedupe: ["react", "react-dom"],
+    },
   };
 });

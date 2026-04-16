@@ -190,9 +190,10 @@ function TacticIcon() {
 interface CardArtProps {
   card: Card;
   height?: number;
+  fullArt?: boolean;
 }
 
-export function CardArt({ card, height = 72 }: CardArtProps) {
+export function CardArt({ card, height = 72, fullArt = false }: CardArtProps) {
   const [from, to] = getGradient(card);
   // Stable, unique id per render — prevents SVG id collisions when the same
   // card appears multiple times on the field.
@@ -201,45 +202,44 @@ export function CardArt({ card, height = 72 }: CardArtProps) {
   const glowId = `glow-${uid}`;
 
   return (
-    <svg
-      viewBox="0 0 100 80"
-      className="w-full rounded-lg overflow-hidden"
-      style={{ height }}
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0.3" y2="1">
-          <stop offset="0%" stopColor={from} />
-          <stop offset="100%" stopColor={to} />
-        </linearGradient>
-        <radialGradient id={glowId} cx="50%" cy="40%" r="50%">
-          <stop offset="0%" stopColor="white" stopOpacity="0.08" />
-          <stop offset="100%" stopColor="white" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <rect width="100" height="80" fill={`url(#${gradId})`} />
-
-      {card.art ? (
-        <image
-          href={card.art}
-          x="0"
-          y="0"
-          width="100"
-          height="80"
-          preserveAspectRatio="xMidYMid meet"
+    <div className="relative w-full rounded-lg overflow-hidden" style={{ height }}>
+      <svg
+        viewBox="0 0 100 80"
+        className="absolute inset-0 w-full h-full"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0.3" y2="1">
+            <stop offset="0%" stopColor={from} />
+            <stop offset="100%" stopColor={to} />
+          </linearGradient>
+          <radialGradient id={glowId} cx="50%" cy="40%" r="50%">
+            <stop offset="0%" stopColor="white" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="white" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="80" fill={`url(#${gradId})`} />
+        {!card.art && (
+          <>
+            {card.type === "unit" && <UnitIcon card={card} />}
+            {card.type === "weapon" && <WeaponIcon card={card} />}
+            {card.type === "item" && <ItemIcon />}
+            {card.type === "support" && <SupportIcon />}
+            {card.type === "tactic" && <TacticIcon />}
+          </>
+        )}
+        <rect width="100" height="80" fill={`url(#${glowId})`} />
+      </svg>
+      {card.art && (
+        <img
+          src={card.art}
+          alt=""
+          className={`absolute inset-0 w-full h-full pointer-events-none ${
+            fullArt ? "object-contain" : "object-cover object-top"
+          }`}
         />
-      ) : (
-        <>
-          {card.type === "unit" && <UnitIcon card={card} />}
-          {card.type === "weapon" && <WeaponIcon card={card} />}
-          {card.type === "item" && <ItemIcon />}
-          {card.type === "support" && <SupportIcon />}
-          {card.type === "tactic" && <TacticIcon />}
-        </>
       )}
-
-      <rect width="100" height="80" fill={`url(#${glowId})`} />
-    </svg>
+    </div>
   );
 }
 
@@ -250,26 +250,24 @@ export function CardArtMini({ card }: { card: Extract<Card, { type: "unit" }> })
   const gradId = `mgrad-${uid}`;
 
   return (
-    <svg viewBox="0 0 100 80" className="w-full h-8 rounded overflow-hidden" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0.3" y2="1">
-          <stop offset="0%" stopColor={from} />
-          <stop offset="100%" stopColor={to} />
-        </linearGradient>
-      </defs>
-      <rect width="100" height="80" fill={`url(#${gradId})`} />
-      {card.art ? (
-        <image
-          href={card.art}
-          x="0"
-          y="0"
-          width="100"
-          height="80"
-          preserveAspectRatio="xMidYMid meet"
+    <div className="relative w-full h-full rounded overflow-hidden">
+      <svg viewBox="0 0 100 80" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0.3" y2="1">
+            <stop offset="0%" stopColor={from} />
+            <stop offset="100%" stopColor={to} />
+          </linearGradient>
+        </defs>
+        <rect width="100" height="80" fill={`url(#${gradId})`} />
+        {!card.art && <UnitIcon card={card} />}
+      </svg>
+      {card.art && (
+        <img
+          src={card.art}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover object-top pointer-events-none"
         />
-      ) : (
-        <UnitIcon card={card} />
       )}
-    </svg>
+    </div>
   );
 }

@@ -11,13 +11,14 @@ interface CardViewProps {
   small?: boolean;
   disabled?: boolean;
   energyShort?: number; // how much energy the player is short (0 = affordable)
+  fullArt?: boolean;
 }
 
 function CostBadge({ cost, small }: { cost: number; small?: boolean }) {
   const size = small ? "w-5 h-5 text-[10px]" : "w-7 h-7 text-sm";
   return (
     <div
-      className={`${size} absolute top-1.5 right-1.5 rounded-full bg-amber-500 text-gray-900 font-black flex items-center justify-center shadow-md`}
+      className={`${size} absolute top-1.5 right-1.5 z-10 rounded-full bg-amber-500 text-gray-900 font-black flex items-center justify-center shadow-md`}
     >
       {cost}
     </div>
@@ -181,7 +182,7 @@ function getCardBg(card: Card): string {
   return "bg-gradient-to-b from-purple-950 to-gray-900";
 }
 
-export function CardView({ card, onClick, selected, small, disabled, energyShort }: CardViewProps) {
+export function CardView({ card, onClick, selected, small, disabled, energyShort, fullArt }: CardViewProps) {
   const setInspectedCard = useGameStore((s) => s.setInspectedCard);
   const border = getCardBorder(card);
   const bg = getCardBg(card);
@@ -217,7 +218,7 @@ export function CardView({ card, onClick, selected, small, disabled, energyShort
       <CostBadge cost={card.cost} small={small} />
 
       <div className={small ? "mb-1.5 -mx-0.5" : "mb-2 -mx-1"}>
-        <CardArt card={card} height={small ? 48 : 72} />
+        <CardArt card={card} height={small ? 48 : fullArt ? 144 : 72} fullArt={fullArt} />
       </div>
 
       {card.type === "unit" && <UnitCardBody card={card} small={small} />}

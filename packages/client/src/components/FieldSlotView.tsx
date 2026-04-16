@@ -54,7 +54,7 @@ export function FieldSlotView({
       title={unit ? "Right-click to inspect" : undefined}
       className={`
         w-36 h-40 rounded-xl border-2 ${border}
-        flex flex-col items-center justify-center relative overflow-hidden
+        flex flex-col items-center ${unit ? "justify-start pt-1.5 pb-1.5" : "justify-center"} relative overflow-hidden
         cursor-pointer transition-all duration-200 ease-out
         ${unit
           ? "bg-gradient-to-b from-gray-800 to-gray-900"
@@ -87,7 +87,7 @@ export function FieldSlotView({
             />
           </div>
 
-          <div className="w-full px-1 mt-1">
+          <div className="flex-1 w-full px-1 min-h-0">
             <CardArtMini card={unit} />
           </div>
           <div className="text-sm font-bold truncate w-full text-center px-2">
