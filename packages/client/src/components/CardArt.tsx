@@ -226,7 +226,7 @@ export function CardArt({ card, height = 72 }: CardArtProps) {
           y="0"
           width="100"
           height="80"
-          preserveAspectRatio="xMidYMid slice"
+          preserveAspectRatio="xMidYMid meet"
         />
       ) : (
         <>
@@ -265,7 +265,7 @@ export function CardArtMini({ card }: { card: Extract<Card, { type: "unit" }> })
           y="0"
           width="100"
           height="80"
-          preserveAspectRatio="xMidYMid slice"
+          preserveAspectRatio="xMidYMid meet"
         />
       ) : (
         <UnitIcon card={card} />

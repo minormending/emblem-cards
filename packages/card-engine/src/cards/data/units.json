@@ -2,6 +2,7 @@
   {
     "type": "unit",
     "id": "lord-marth",
+    "art": "/cards/lord-marth.png",
     "name": "Sword Lord",
     "class": "Lord",
     "attackType": "sword",
@@ -16,6 +17,7 @@
   {
     "type": "unit",
     "id": "lord-ephraim",
+    "art": "/cards/lord-ephraim.png",
     "name": "Lance Lord",
     "class": "Lord",
     "attackType": "lance",
@@ -30,6 +32,7 @@
   {
     "type": "unit",
     "id": "swordmaster-karel",
+    "art": "/cards/swordmaster-karel.png",
     "name": "Swordmaster",
     "class": "Swordmaster",
     "attackType": "sword",
@@ -44,6 +47,7 @@
   {
     "type": "unit",
     "id": "thief-matthew",
+    "art": "/cards/thief-matthew.png",
     "name": "Thief",
     "class": "Thief",
     "attackType": "sword",
@@ -58,6 +62,7 @@
   {
     "type": "unit",
     "id": "berserker-hawkeye",
+    "art": "/cards/berserker-hawkeye.png",
     "name": "Berserker",
     "class": "Berserker",
     "attackType": "axe",
@@ -72,6 +77,7 @@
   {
     "type": "unit",
     "id": "knight-oswin",
+    "art": "/cards/knight-oswin.png",
     "name": "Knight",
     "class": "Knight",
     "attackType": "lance",
@@ -86,6 +92,7 @@
   {
     "type": "unit",
     "id": "archer-wil",
+    "art": "/cards/archer-wil.png",
     "name": "Archer",
     "class": "Archer",
     "attackType": "bow",
@@ -103,6 +110,7 @@
   {
     "type": "unit",
     "id": "pegasus-florina",
+    "art": "/cards/pegasus-florina.png",
     "name": "Pegasus Knight",
     "class": "Pegasus Knight",
     "attackType": "lance",
@@ -117,6 +125,7 @@
   {
     "type": "unit",
     "id": "wyvern-heath",
+    "art": "/cards/wyvern-heath.png",
     "name": "Wyvern Rider",
     "class": "Wyvern Rider",
     "attackType": "lance",
@@ -131,6 +140,7 @@
   {
     "type": "unit",
     "id": "mage-lilina",
+    "art": "/cards/mage-lilina.png",
     "name": "Fire Mage",
     "class": "Mage",
     "attackType": "fire",
@@ -145,6 +155,7 @@
   {
     "type": "unit",
     "id": "mage-nino",
+    "art": "/cards/mage-nino.png",
     "name": "Wind Mage",
     "class": "Mage",
     "attackType": "wind",
@@ -159,6 +170,7 @@
   {
     "type": "unit",
     "id": "mage-lugh",
+    "art": "/cards/mage-lugh.png",
     "name": "Thunder Mage",
     "class": "Mage",
     "attackType": "thunder",
@@ -173,6 +185,7 @@
   {
     "type": "unit",
     "id": "cleric-serra",
+    "art": "/cards/cleric-serra.png",
     "name": "Cleric",
     "class": "Cleric",
     "attackType": "fire",
@@ -187,6 +200,7 @@
   {
     "type": "unit",
     "id": "general-wallace",
+    "art": "/cards/general-wallace.png",
     "name": "General",
     "class": "General",
     "attackType": "axe",
@@ -201,6 +215,7 @@
   {
     "type": "unit",
     "id": "mercenary-raven",
+    "art": "/cards/mercenary-raven.png",
     "name": "Mercenary",
     "class": "Mercenary",
     "attackType": "sword",
@@ -215,6 +230,7 @@
   {
     "type": "unit",
     "id": "troubadour-priscilla",
+    "art": "/cards/troubadour-priscilla.png",
     "name": "Troubadour",
     "class": "Troubadour",
     "attackType": "wind",
@@ -229,6 +245,7 @@
   {
     "type": "unit",
     "id": "shaman-canas",
+    "art": "/cards/shaman-canas.png",
     "name": "Shaman",
     "class": "Shaman",
     "attackType": "thunder",
