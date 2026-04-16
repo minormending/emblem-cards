@@ -16,9 +16,15 @@ export const CARD_ART_HEIGHT = {
  * Art path convention: PNGs in `packages/client/public/cards/` named `<id>.png`.
  * Presence is validated by `pnpm cards:check`. At runtime we optimistically
  * try to load; onError we fall back to the SVG silhouette.
+ *
+ * `import.meta.env.BASE_URL` is `/` in dev and `/emblem/` (or whatever
+ * `VITE_BASE_PATH` is set to) in production. Without this prefix the request
+ * would bypass the app's mount point at the gateway and fall through to the
+ * root landing page, which responds with index.html — the browser then can't
+ * decode the HTML body as a PNG and shows a blank image.
  */
 function artUrlFor(cardId: string): string {
-  return `/cards/${cardId}.png`;
+  return `${import.meta.env.BASE_URL}cards/${cardId}.png`;
 }
 
 const attackTypeGradients: Record<AttackType, [string, string]> = {
