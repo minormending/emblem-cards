@@ -70,10 +70,11 @@ export function Battle() {
   if (!me || !opponent) return null;
 
   if (winner) {
+    const winnerName = winner === me.id ? me.name : opponent.name;
     return (
       <WinnerScreen
         didWin={didWin}
-        winnerName={winner}
+        winnerName={winnerName}
         turnCount={turnNumber}
         onBackToMenu={exitGame}
         onRematch={mode === 'online' ? undefined : rematch}
