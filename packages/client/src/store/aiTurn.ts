@@ -28,6 +28,7 @@ import {
 import type { AIAction } from "@cards/battle-engine";
 import type { useGameStore } from "./gameStore";
 import { useLogStore } from "./logStore";
+import { appendMatchEvents } from "./actions/local";
 import { useFxStore, isMagicalAttack } from "./fxStore";
 import { sfx } from "../lib/sounds";
 
@@ -130,6 +131,7 @@ function applyActionFx(
   preText: string | null
 ): void {
   useLogStore.getState().addFromEvents(gs, events);
+  appendMatchEvents(store, events);
 
   const show = store.getState().showMessage;
 
@@ -206,6 +208,7 @@ function finishAITurn(store: Store, gs: GameState): void {
   }
   const endEvents = endTurn(gs);
   useLogStore.getState().addFromEvents(gs, endEvents);
+  appendMatchEvents(store, endEvents);
   drawPhase(gs);
   store.setState({ gameState: { ...gs } });
 }

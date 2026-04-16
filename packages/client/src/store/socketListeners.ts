@@ -48,8 +48,9 @@ export function attachSocketListeners(socket: GameSocket, store: StoreApi): void
     }
   });
 
-  socket.on("game:over", () => {
-    // Final state comes via game:update before this; nothing extra to do here.
+  socket.on("game:over", ({ stats }) => {
+    // Final state comes via game:update before this; attach stats for UI.
+    store.setState({ matchStats: stats });
   });
 
   socket.on("room:created", ({ code }) => {

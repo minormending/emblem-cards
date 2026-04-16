@@ -17,3 +17,4 @@ export * from "./clone.js";
 export * from "./constants.js";
 export * from "./errors.js";
 export * from "./events.js";
+export * from "./stats.js";

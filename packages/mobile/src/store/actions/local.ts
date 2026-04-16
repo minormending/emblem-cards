@@ -31,6 +31,7 @@ export function createLocalActions(store: Store): GameActions {
       } else {
         sfx.deploy();
         useLogStore.getState().addFromEvents(gameState, result.value);
+        appendMatchEvents(store, result.value);
         spawnCombatFx(gameState, result.value, mode);
       }
       store.setState({ gameState: { ...gameState }, selectedHandIndex: null });
@@ -51,6 +52,7 @@ export function createLocalActions(store: Store): GameActions {
         sfx.attack();
         const events = result.value;
         useLogStore.getState().addFromEvents(gameState, events);
+        appendMatchEvents(store, events);
         const damageEvents = events.filter(
           (e): e is Extract<GameEvent, { kind: 'unit_damaged' }> =>
             e.kind === 'unit_damaged',
@@ -84,6 +86,7 @@ export function createLocalActions(store: Store): GameActions {
       sfx.endTurn();
       const events = endTurn(gameState);
       useLogStore.getState().addFromEvents(gameState, events);
+      appendMatchEvents(store, events);
       drawPhase(gameState);
       store.setState({
         gameState: { ...gameState },
@@ -100,6 +103,11 @@ export function createLocalActions(store: Store): GameActions {
 function fail(state: ReturnType<Store['getState']>, e: ReturnType<typeof err>): void {
   sfx.error();
   state.showMessage(formatError(e.error));
+}
+
+export function appendMatchEvents(store: Store, events: GameEvent[]): void {
+  if (events.length === 0) return;
+  store.setState((s) => ({ matchEvents: [...s.matchEvents, ...events] }));
 }
 
 function triggerShake(store: Store, pos: FieldPosition): void {

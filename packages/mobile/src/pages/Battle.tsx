@@ -6,6 +6,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import type { FieldRow, FieldCol, SupportCard } from '@cards/shared';
+import { computeMatchStats } from '@cards/shared';
 import { getSlot, opposingPlayer } from '@cards/battle-engine';
 import {
   useGameStore,
@@ -71,6 +72,12 @@ export function Battle() {
 
   if (winner) {
     const winnerName = winner === me.id ? me.name : opponent.name;
+    const stats =
+      mode === 'online'
+        ? store.matchStats
+        : store.gameState
+          ? computeMatchStats(store.gameState, store.matchEvents, winner)
+          : null;
     return (
       <WinnerScreen
         didWin={didWin}
@@ -79,6 +86,7 @@ export function Battle() {
         onBackToMenu={exitGame}
         onRematch={mode === 'online' ? undefined : rematch}
         mode={mode}
+        stats={stats}
       />
     );
   }

@@ -14,7 +14,7 @@
  *   - socketListeners.ts: server → client event handlers
  */
 import { create } from "zustand";
-import type { Card, FieldPosition, GameState, GameView } from "@cards/shared";
+import type { Card, FieldPosition, GameEvent, GameState, GameView, MatchStats } from "@cards/shared";
 import { MESSAGE_DURATION_MS } from "@cards/shared";
 import { createGame, drawPhase } from "@cards/battle-engine";
 import { getSocket, disconnectSocket } from "./socket";
@@ -45,6 +45,13 @@ interface GameStore {
   roomCode: string | null;
   /** 'queue' = public matchmaking, 'host' = waiting for friend, 'guest' = joining. */
   roomRole: "queue" | "host" | "guest" | null;
+
+  // ── End-of-match stats ──
+  /** Raw event log for the current match. Used by local/AI mode to compute
+   *  stats locally. Empty in online mode — server sends stats pre-computed. */
+  matchEvents: GameEvent[];
+  /** Server-provided stats for online mode. Local/AI compute at render time. */
+  matchStats: MatchStats | null;
 
   // ── UI state ──
   selectedHandIndex: number | null;
@@ -95,13 +102,15 @@ function logSystemStart(gameState: GameState): void {
   });
 }
 
-// The per-game UI slots we want to clear whenever a new game begins.
+// The per-game UI + stats slots we want to clear whenever a new game begins.
 const FRESH_UI_STATE = {
   selectedHandIndex: null,
   selectedAttackerPos: null,
   lastHitPos: null,
   message: null,
   inspectedCard: null,
+  matchEvents: [] as GameEvent[],
+  matchStats: null as MatchStats | null,
 } as const;
 
 /**

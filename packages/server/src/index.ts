@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents } from "@cards/shared";
-import { formatError } from "@cards/shared";
+import { formatError, computeMatchStats } from "@cards/shared";
 import { GameRoom } from "./GameRoom.js";
 import { MatchmakingQueue } from "./matchmaking.js";
 import { validateDeck, isValidFieldPosition, isValidHandIndex } from "./validate.js";
@@ -55,6 +55,11 @@ function socketIdFor(playerId: string): string | null {
 
 /** Push the current game view to each player in a room, plus game:over on win. */
 function broadcastGameUpdate(room: GameRoom): void {
+  // Compute stats once per broadcast when the game is over — same payload
+  // goes to both players so the WinnerScreen can render symmetric info.
+  const stats = room.state.winner
+    ? computeMatchStats(room.state, room.events, room.state.winner)
+    : null;
   for (const pid of room.playerIds) {
     const socketId = socketIdFor(pid);
     if (!socketId) continue;
@@ -64,6 +69,7 @@ function broadcastGameUpdate(room: GameRoom): void {
       io.to(socketId).emit("game:over", {
         winner: view.winner,
         turnCount: view.turnNumber,
+        stats,
       });
     }
   }
@@ -287,10 +293,12 @@ io.on("connection", (socket) => {
         room.state.winner = opponentId;
         const opponentSocket = socketIdFor(opponentId);
         if (opponentSocket) {
+          const stats = computeMatchStats(room.state, room.events, opponentId);
           io.to(opponentSocket).emit("game:update", room.getView(opponentId));
           io.to(opponentSocket).emit("game:over", {
             winner: opponentId,
             turnCount: room.state.turnNumber,
+            stats,
           });
         }
       }

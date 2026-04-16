@@ -37,7 +37,9 @@ export function attachSocketListeners(socket: GameSocket, store: StoreApi): void
       store.getState().showMessage(`${result.damage} damage!`);
     }
   });
-  socket.on('game:over', () => {});
+  socket.on('game:over', ({ stats }) => {
+    store.setState({ matchStats: stats });
+  });
 
   socket.on('room:created', ({ code }) => {
     store.setState({ roomCode: code });

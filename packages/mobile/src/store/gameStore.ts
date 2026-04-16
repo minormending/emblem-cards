@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Card, FieldPosition, GameState, GameView } from '@cards/shared';
+import type { Card, FieldPosition, GameEvent, GameState, GameView, MatchStats } from '@cards/shared';
 import { MESSAGE_DURATION_MS, cloneCard } from '@cards/shared';
 import { createGame, drawPhase } from '@cards/battle-engine';
 import { getSocket, disconnectSocket } from './socket';
@@ -27,6 +27,10 @@ interface GameStore {
   roomCode: string | null;
   /** 'queue' = public matchmaking, 'host' = waiting for friend, 'guest' = joining. */
   roomRole: 'queue' | 'host' | 'guest' | null;
+  /** Raw events, accumulated for local/AI so WinnerScreen can compute stats. */
+  matchEvents: GameEvent[];
+  /** Server-provided stats for online mode. */
+  matchStats: MatchStats | null;
   /** Socket lifecycle state, surfaced so Matchmaking can show meaningful text. */
   connectionStatus: 'idle' | 'connecting' | 'connected' | 'error';
   connectionError: string | null;
@@ -79,6 +83,8 @@ const FRESH_UI_STATE = {
   lastHitPos: null,
   message: null,
   inspectedCard: null,
+  matchEvents: [] as GameEvent[],
+  matchStats: null as MatchStats | null,
 } as const;
 
 /** Shared online-action setup: connect if needed, auth, run afterAuth. */

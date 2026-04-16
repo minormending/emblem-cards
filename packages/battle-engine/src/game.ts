@@ -196,6 +196,9 @@ export function attackAction(
       defenderName: defSlot.unit.name,
       defenderMaxHp: defSlot.unit.maxHp,
       attackerAttackType: atkSlot.unit.attackType,
+      attackerUnit: atkSlot.unit,
+      attackerOwner: player.id,
+      defenderUnit: defSlot.unit,
     },
   ];
 
@@ -262,6 +265,9 @@ export function attackAction(
         defenderName: atkSlot.unit.name,
         defenderMaxHp: atkSlot.unit.maxHp,
         attackerAttackType: defSlot.unit!.attackType,
+        attackerUnit: defSlot.unit!,
+        attackerOwner: opponent.id,
+        defenderUnit: atkSlot.unit,
         isCounter: true,
       });
 

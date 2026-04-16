@@ -1,4 +1,5 @@
 import type { Card, FieldPosition, GameState, Player } from "./types.js";
+import type { MatchStats } from "./stats.js";
 
 // ── Client → Server events ──
 
@@ -69,8 +70,8 @@ export interface ServerToClientEvents {
     damage?: number;
     targetPos?: FieldPosition;
   }) => void;
-  /** Game is over */
-  "game:over": (data: { winner: string; turnCount: number }) => void;
+  /** Game is over. Includes end-of-match stats for the victory screen. */
+  "game:over": (data: { winner: string; turnCount: number; stats: MatchStats | null }) => void;
   /** Queue position updated */
   "queue:update": (data: { position: number }) => void;
   /** Private room created; share this code with your opponent. */

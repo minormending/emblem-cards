@@ -48,6 +48,7 @@ export function createLocalActions(store: Store): GameActions {
       } else {
         sfx.deploy();
         useLogStore.getState().addFromEvents(gameState, result.value);
+        appendMatchEvents(store, result.value);
         // Item/tactic damage events also get VFX (e.g. Meteor, Bolting).
         spawnCombatFx(gameState, result.value, mode);
       }
@@ -73,6 +74,7 @@ export function createLocalActions(store: Store): GameActions {
 
         // Log
         useLogStore.getState().addFromEvents(gameState, events);
+        appendMatchEvents(store, events);
 
         // Toast: primary hit + counter if present
         const damageEvents = events.filter(
@@ -116,6 +118,7 @@ export function createLocalActions(store: Store): GameActions {
       sfx.endTurn();
       const events = endTurn(gameState);
       useLogStore.getState().addFromEvents(gameState, events);
+      appendMatchEvents(store, events);
 
       const drew = drawPhase(gameState);
       if (drew.ok) useLogStore.getState().addFromEvents(gameState, []); // no-op; draw events handled inside endTurn if any
@@ -139,6 +142,11 @@ export function createLocalActions(store: Store): GameActions {
 function fail(state: ReturnType<Store["getState"]>, e: ReturnType<typeof err>): void {
   sfx.error();
   state.showMessage(formatError(e.error));
+}
+
+export function appendMatchEvents(store: Store, events: GameEvent[]): void {
+  if (events.length === 0) return;
+  store.setState((s) => ({ matchEvents: [...s.matchEvents, ...events] }));
 }
 
 /** Set lastHitPos long enough to trigger the shake animation, then clear. */

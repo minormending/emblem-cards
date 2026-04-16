@@ -1,4 +1,5 @@
 import type { FieldRow, FieldCol, SupportCard } from "@cards/shared";
+import { computeMatchStats } from "@cards/shared";
 import { getSlot, opposingPlayer } from "@cards/battle-engine";
 import {
   useGameStore,
@@ -64,12 +65,21 @@ export function Battle() {
 
   if (winner) {
     const winnerName = winner === me.id ? me.name : opponent.name;
+    // Online mode: server sent stats via game:over. Local/AI: compute now
+    // from the in-memory event log + final game state.
+    const stats =
+      mode === "online"
+        ? store.matchStats
+        : store.gameState
+          ? computeMatchStats(store.gameState, store.matchEvents, winner)
+          : null;
     return (
       <WinnerScreen
         didWin={didWin}
         winnerName={winnerName}
         turnCount={turnNumber}
         onBackToMenu={exitGame}
+        stats={stats}
       />
     );
   }
