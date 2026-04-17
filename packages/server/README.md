@@ -59,7 +59,7 @@ node packages/server/dist/index.js
 Accepted `CLIENT_ORIGIN` examples:
 
 ```
-https://159-203-108-80.sslip.io
+https://1-2-3-4.sslip.io
 https://a.example.com,https://b.example.com
 ```
 

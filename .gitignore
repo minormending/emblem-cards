@@ -13,10 +13,28 @@ build/
 # Vite
 .vite/
 
-# Env
+# Env — every .env form, but keep examples.
 .env
 .env.local
 .env.*.local
+.env.production
+
+# Secrets — keystores, certs, private keys. Belt and suspenders so nothing
+# named with a well-known extension lands in the repo by accident.
+*.jks
+*.keystore
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+!**/node_modules/**/*.pem
+!**/node_modules/**/*.key
+
+# Release artifacts (signed app bundles, APKs)
+*.aab
+*.apk
 
 # Logs
 *.log

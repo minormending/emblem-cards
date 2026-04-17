@@ -7,7 +7,7 @@ pushed to GHCR, and pulled on deploy.
 
 TLS comes from Let's Encrypt. The droplet does not need a registered domain —
 it uses a free **sslip.io** hostname derived from its public IP (e.g.
-`159-203-108-80.sslip.io` for IP `159.203.108.80`).
+`1-2-3-4.sslip.io` for IP `1.2.3.4`).
 
 > **Deep-dive docs for each layer:**
 > - [`deploy/README.md`](./deploy/README.md) — whole-deploy overview
@@ -110,14 +110,14 @@ yourself:
 cd /opt/apps/_gateway
 # Copy Caddyfile, docker-compose.yml, landing/ here.
 cat > .env <<EOF
-SITE_ADDRESS=159-203-108-80.sslip.io
+SITE_ADDRESS=1-2-3-4.sslip.io
 EOF
 chmod 600 .env
 
 cd /opt/apps/emblem
 # Copy docker-compose.yml here.
 cat > .env <<EOF
-SITE_ADDRESS=159-203-108-80.sslip.io
+SITE_ADDRESS=1-2-3-4.sslip.io
 GH_REPO=yourname/emblem-cards
 IMAGE_TAG=<git-sha-to-deploy>
 EOF
@@ -173,10 +173,10 @@ Under **Settings → Secrets and variables → Actions**:
 
 | Secret               | Purpose                                                      |
 | -------------------- | ------------------------------------------------------------ |
-| `DROPLET_HOST`       | Public IP (e.g. `159.203.108.80`).                           |
+| `DROPLET_HOST`       | Public IP (e.g. `1.2.3.4`).                           |
 | `DROPLET_USER`       | `deploy`                                                     |
 | `DROPLET_SSH_KEY`    | Private key for the deploy user (OpenSSH format).            |
-| `SITE_ADDRESS`       | `159-203-108-80.sslip.io`                                    |
+| `SITE_ADDRESS`       | `1-2-3-4.sslip.io`                                    |
 | `GHCR_READ_TOKEN`    | Classic PAT, `read:packages` scope only.                     |
 
 Optionally create a **production** GitHub Environment for required-

@@ -39,7 +39,7 @@ caddy` (or a `docker compose up -d` after editing the Caddyfile).
 ### TLS site — `{$SITE_ADDRESS}`
 
 `{$SITE_ADDRESS}` expands to whatever the `SITE_ADDRESS` env var holds
-(e.g. `159-203-108-80.sslip.io`). Caddy auto-provisions a Let's Encrypt
+(e.g. `1-2-3-4.sslip.io`). Caddy auto-provisions a Let's Encrypt
 certificate for that hostname on first boot; ACME HTTP-01 challenge runs
 on `:80` and renewals happen in-process.
 

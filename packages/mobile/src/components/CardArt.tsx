@@ -1,3 +1,4 @@
+import { Image, View, type ImageSourcePropType, StyleSheet } from 'react-native';
 import Svg, {
   Defs,
   LinearGradient,
@@ -12,6 +13,34 @@ import Svg, {
   Ellipse,
 } from 'react-native-svg';
 import type { Card, AttackType } from '@cards/shared';
+
+// Static require() map — React Native resolves every require() at bundle time,
+// so we can't compute the path from a card id at runtime. Each PNG mirrors the
+// web client's `public/cards/<id>.png` asset. Missing ids fall through to the
+// procedural SVG silhouette that lives underneath.
+const cardArtAssets: Record<string, ImageSourcePropType> = {
+  'archer-wil': require('../../assets/cards/archer-wil.png'),
+  'berserker-hawkeye': require('../../assets/cards/berserker-hawkeye.png'),
+  'cleric-serra': require('../../assets/cards/cleric-serra.png'),
+  'general-wallace': require('../../assets/cards/general-wallace.png'),
+  'knight-oswin': require('../../assets/cards/knight-oswin.png'),
+  'lord-ephraim': require('../../assets/cards/lord-ephraim.png'),
+  'lord-marth': require('../../assets/cards/lord-marth.png'),
+  'mage-lilina': require('../../assets/cards/mage-lilina.png'),
+  'mage-lugh': require('../../assets/cards/mage-lugh.png'),
+  'mage-nino': require('../../assets/cards/mage-nino.png'),
+  'mercenary-raven': require('../../assets/cards/mercenary-raven.png'),
+  'pegasus-florina': require('../../assets/cards/pegasus-florina.png'),
+  'shaman-canas': require('../../assets/cards/shaman-canas.png'),
+  'swordmaster-karel': require('../../assets/cards/swordmaster-karel.png'),
+  'thief-matthew': require('../../assets/cards/thief-matthew.png'),
+  'troubadour-priscilla': require('../../assets/cards/troubadour-priscilla.png'),
+  'wyvern-heath': require('../../assets/cards/wyvern-heath.png'),
+};
+
+function artSource(card: Card): ImageSourcePropType | null {
+  return cardArtAssets[card.id] ?? null;
+}
 
 const attackTypeGradients: Record<AttackType, [string, string]> = {
   sword: ['#991b1b', '#450a0a'],
@@ -294,33 +323,43 @@ export function CardArt({ card, height = 72, width = '100%' }: CardArtProps) {
   const [from, to] = getGradient(card);
   const gradId = nextId();
   const glowId = nextId();
+  const bitmap = artSource(card);
 
   // Fabric + react-native-svg 15 renders 0-width Svgs when width is passed as a
   // prop — a style object forces layout to pick it up correctly.
   return (
-    <Svg
-      viewBox="0 0 100 80"
-      style={{ width: width as number | `${number}%`, height }}
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <Defs>
-        <LinearGradient id={gradId} x1="0" y1="0" x2="0.3" y2="1">
-          <Stop offset="0%" stopColor={from} />
-          <Stop offset="100%" stopColor={to} />
-        </LinearGradient>
-        <RadialGradient id={glowId} cx="50%" cy="40%" r="50%">
-          <Stop offset="0%" stopColor="white" stopOpacity={0.08} />
-          <Stop offset="100%" stopColor="white" stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Rect width={100} height={80} fill={`url(#${gradId})`} />
-      {card.type === 'unit' && <UnitIcon card={card} />}
-      {card.type === 'weapon' && <WeaponIcon card={card} />}
-      {card.type === 'item' && <ItemIcon />}
-      {card.type === 'support' && <SupportIcon />}
-      {card.type === 'tactic' && <TacticIcon />}
-      <Rect width={100} height={80} fill={`url(#${glowId})`} />
-    </Svg>
+    <View style={[styles.wrap, { width: width as number | `${number}%`, height }]}>
+      <Svg
+        viewBox="0 0 100 80"
+        style={StyleSheet.absoluteFill}
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <Defs>
+          <LinearGradient id={gradId} x1="0" y1="0" x2="0.3" y2="1">
+            <Stop offset="0%" stopColor={from} />
+            <Stop offset="100%" stopColor={to} />
+          </LinearGradient>
+          <RadialGradient id={glowId} cx="50%" cy="40%" r="50%">
+            <Stop offset="0%" stopColor="white" stopOpacity={0.08} />
+            <Stop offset="100%" stopColor="white" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect width={100} height={80} fill={`url(#${gradId})`} />
+        {card.type === 'unit' && <UnitIcon card={card} />}
+        {card.type === 'weapon' && <WeaponIcon card={card} />}
+        {card.type === 'item' && <ItemIcon />}
+        {card.type === 'support' && <SupportIcon />}
+        {card.type === 'tactic' && <TacticIcon />}
+        <Rect width={100} height={80} fill={`url(#${glowId})`} />
+      </Svg>
+      {bitmap && (
+        <Image
+          source={bitmap}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+      )}
+    </View>
   );
 }
 
@@ -335,20 +374,37 @@ export function CardArtMini({
 }) {
   const [from, to] = getGradient(card);
   const gradId = nextId();
+  const bitmap = artSource(card);
   return (
-    <Svg
-      viewBox="0 0 100 80"
-      style={{ width, height }}
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <Defs>
-        <LinearGradient id={gradId} x1="0" y1="0" x2="0.3" y2="1">
-          <Stop offset="0%" stopColor={from} />
-          <Stop offset="100%" stopColor={to} />
-        </LinearGradient>
-      </Defs>
-      <Rect width={100} height={80} fill={`url(#${gradId})`} />
-      <UnitIcon card={card} />
-    </Svg>
+    <View style={[styles.wrap, { width, height }]}>
+      <Svg
+        viewBox="0 0 100 80"
+        style={StyleSheet.absoluteFill}
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <Defs>
+          <LinearGradient id={gradId} x1="0" y1="0" x2="0.3" y2="1">
+            <Stop offset="0%" stopColor={from} />
+            <Stop offset="100%" stopColor={to} />
+          </LinearGradient>
+        </Defs>
+        <Rect width={100} height={80} fill={`url(#${gradId})`} />
+        <UnitIcon card={card} />
+      </Svg>
+      {bitmap && (
+        <Image
+          source={bitmap}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+      )}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+});
