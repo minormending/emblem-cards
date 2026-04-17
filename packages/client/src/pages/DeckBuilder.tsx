@@ -1,11 +1,10 @@
 import { useState } from "react";
 import type { Card } from "@cards/shared";
 import { DECK_SIZE, MAX_CARD_COPIES, cloneCard } from "@cards/shared";
-import { units, weapons, items, supports, tactics } from "@cards/card-engine";
+import { units, weapons, items, supports, tactics, buildRandomDeck } from "@cards/card-engine";
 import { CardView } from "../components/CardView";
 import { CardInspector } from "../components/CardInspector";
 import { useGameStore } from "../store/gameStore";
-import { buildRandomDeck } from "../lib/deckBuilder";
 const tabs = [
   { label: "Units", cards: units as Card[] },
   { label: "Weapons", cards: weapons as Card[] },

@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import type { Card, UnitCard, WeaponCard, ItemCard, SupportCard, TacticCard } from "@cards/shared";
-import { attackTypeBorders, attackTypeLabels } from "../lib/colors";
-import { effectLabel } from "../lib/effects";
+import { attackTypeLabels, effectLabel, formatWeaponBoosts, formatSupportPair } from "@cards/shared";
+import { attackTypeBorders } from "../lib/colors";
 import { CardArt, CARD_ART_HEIGHT } from "./CardArt";
 import { useGameStore } from "../store/gameStore";
 
@@ -123,10 +123,6 @@ function UnitCardBody({ card, small }: { card: UnitCard; small?: boolean }) {
 }
 
 function WeaponCardBody({ card, small }: { card: WeaponCard; small?: boolean }) {
-  const boosts = Object.entries(card.statBoost)
-    .filter(([, v]) => v !== undefined && v !== 0)
-    .map(([k, v]) => `+${v} ${k.toUpperCase()}`);
-
   return (
     <>
       <div className="flex items-center justify-between mb-0.5">
@@ -136,7 +132,7 @@ function WeaponCardBody({ card, small }: { card: WeaponCard; small?: boolean }) 
       <div className={clsx("font-bold leading-tight", small ? "text-sm" : "text-base")}>
         {card.name}
       </div>
-      <div className="text-sm text-emerald-300 font-semibold mt-1">{boosts.join(", ")}</div>
+      <div className="text-sm text-emerald-300 font-semibold mt-1">{formatWeaponBoosts(card)}</div>
       <EffectsBlock effects={card.effects} />
     </>
   );
@@ -162,9 +158,7 @@ function SupportCardBody({ card, small }: { card: SupportCard; small?: boolean }
         {card.name}
       </div>
       <div className="text-[11px] text-sky-300 mt-1 bg-sky-500/10 rounded px-1.5 py-0.5 inline-block">
-        {card.pairRequirement.classA === card.pairRequirement.classB
-          ? `2× ${card.pairRequirement.classA}`
-          : `${card.pairRequirement.classA} or ${card.pairRequirement.classB}`}
+        {formatSupportPair(card)}
       </div>
       <EffectsBlock effects={card.effects} />
     </>

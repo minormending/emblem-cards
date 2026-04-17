@@ -11,16 +11,6 @@ export const attackTypeHex: Record<AttackType, string> = {
   thunder: '#a855f7',
 };
 
-export const attackTypeLabels: Record<AttackType, string> = {
-  sword: 'Sword',
-  axe: 'Axe',
-  lance: 'Lance',
-  bow: 'Bow',
-  fire: 'Fire',
-  wind: 'Wind',
-  thunder: 'Thunder',
-};
-
 export const cardTypeColor: Record<string, string> = {
   unit: '#4b5563',
   weapon: '#6b7280',

@@ -26,3 +26,4 @@ export {
   getWeaponsForType,
   getLords,
 } from "./cards/index.js";
+export { buildRandomDeck } from "./deckBuilder.js";

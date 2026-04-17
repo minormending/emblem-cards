@@ -1,28 +1,28 @@
-import type { Effect } from '@cards/shared';
+import type { Effect } from "./types.js";
 
 export function effectLabel(effect: Effect): string {
   switch (effect.kind) {
-    case 'damage_multiplier_vs_tag':
+    case "damage_multiplier_vs_tag":
       return `${effect.multiplier}x vs ${effect.tag}`;
-    case 'double_attack':
-      return 'Attacks twice';
-    case 'heal_adjacent':
+    case "double_attack":
+      return "Attacks twice";
+    case "heal_adjacent":
       return `Heal adj. ${effect.amount} HP`;
-    case 'heal_target':
+    case "heal_target":
       return `Heal ${effect.amount} HP`;
-    case 'buff_target':
+    case "buff_target":
       return `+${effect.amount} ${effect.stat.toUpperCase()} (${effect.duration}t)`;
-    case 'damage_target':
+    case "damage_target":
       return `Deal ${effect.amount} dmg`;
-    case 'draw_cards':
+    case "draw_cards":
       return `Draw ${effect.amount}`;
-    case 'ranged':
-      return 'Ranged';
-    case 'flying':
-      return 'Flying';
-    case 'pair_bonus':
+    case "ranged":
+      return "Ranged";
+    case "flying":
+      return "Flying";
+    case "pair_bonus":
       return `Pair: +${effect.amount} ${effect.stat.toUpperCase()}`;
-    case 'reposition':
-      return 'Reposition';
+    case "reposition":
+      return "Reposition";
   }
 }

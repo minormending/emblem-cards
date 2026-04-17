@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="70%">
+      <stop offset="0%" stop-color="#1b1f2e"/>
+      <stop offset="55%" stop-color="#0f1219"/>
+      <stop offset="100%" stop-color="#05060a"/>
+    </radialGradient>
+    <linearGradient id="shield" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="35%" stop-color="#fbbf24"/>
+      <stop offset="75%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#92400e"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f9fafb"/>
+      <stop offset="45%" stop-color="#d1d5db"/>
+      <stop offset="100%" stop-color="#4b5563"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#78350f"/>
+      <stop offset="100%" stop-color="#3f1705"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- Star specks -->
+  <g fill="#ffffff" fill-opacity="0.04">
+    <circle cx="120" cy="180" r="3"/>
+    <circle cx="220" cy="820" r="2"/>
+    <circle cx="860" cy="140" r="4"/>
+    <circle cx="940" cy="760" r="3"/>
+    <circle cx="420" cy="90"  r="2"/>
+    <circle cx="130" cy="520" r="3"/>
+    <circle cx="890" cy="480" r="2"/>
+    <circle cx="660" cy="940" r="3"/>
+  </g>
+
+  <!-- Shield -->
+  <g>
+    <path
+      d="M 224 208
+         L 800 208
+         L 800 520
+         C 800 720 680 830 512 912
+         C 344 830 224 720 224 520 Z"
+      fill="url(#shield)"
+      stroke="#3f1705"
+      stroke-width="18"
+      stroke-linejoin="round"/>
+    <!-- Inner recessed border -->
+    <path
+      d="M 268 250
+         L 756 250
+         L 756 516
+         C 756 694 656 794 512 868
+         C 368 794 268 694 268 516 Z"
+      fill="none"
+      stroke="#7c2d12"
+      stroke-width="5"
+      stroke-opacity="0.45"/>
+    <!-- Top gloss -->
+    <path
+      d="M 268 252
+         L 756 252
+         L 756 400
+         C 660 362 364 362 268 400 Z"
+      fill="url(#gloss)"/>
+  </g>
+
+  <!-- ========== Crossed weapons ========== -->
+  <!-- Bolder blades/handles so silhouette survives at 48px -->
+
+  <!-- Sword: -35° rotation (blade pointing up-left) -->
+  <g transform="rotate(-35 512 548)">
+    <!-- Blade -->
+    <polygon
+      points="480,232 544,232 544,672 512,708 480,672"
+      fill="url(#steel)" stroke="#0b0d12" stroke-width="10" stroke-linejoin="round"/>
+    <!-- Fuller -->
+    <line x1="512" y1="258" x2="512" y2="660"
+          stroke="#6b7280" stroke-width="4" stroke-opacity="0.9"/>
+    <!-- Crossguard -->
+    <rect x="416" y="668" width="192" height="30" rx="6"
+          fill="#78350f" stroke="#0b0d12" stroke-width="8"/>
+    <!-- Grip -->
+    <rect x="494" y="698" width="36" height="96"
+          fill="url(#wood)" stroke="#0b0d12" stroke-width="8"/>
+    <!-- Pommel -->
+    <circle cx="512" cy="812" r="26"
+            fill="#fbbf24" stroke="#0b0d12" stroke-width="8"/>
+  </g>
+
+  <!-- Axe: +35° rotation (head at top-right) -->
+  <g transform="rotate(35 512 548)">
+    <!-- Handle -->
+    <rect x="494" y="240" width="36" height="560" rx="10"
+          fill="url(#wood)" stroke="#0b0d12" stroke-width="8"/>
+    <!-- Axe head — larger, single-bit with beard -->
+    <path
+      d="M 530 276
+         L 700 240
+         L 736 340
+         L 700 440
+         L 530 404 Z"
+      fill="url(#steel)" stroke="#0b0d12" stroke-width="10" stroke-linejoin="round"/>
+    <!-- Cutting edge highlight -->
+    <path
+      d="M 700 244 L 732 338 L 700 436"
+      fill="none" stroke="#f9fafb" stroke-width="5" stroke-linejoin="round" stroke-opacity="0.85"/>
+    <!-- Pommel cap -->
+    <circle cx="512" cy="810" r="22"
+            fill="#92400e" stroke="#0b0d12" stroke-width="8"/>
+  </g>
+
+  <!-- Central medallion over the X crossing -->
+  <g>
+    <circle cx="512" cy="548" r="58"
+            fill="#3f1705" stroke="#fbbf24" stroke-width="10"/>
+    <!-- Bold 4-point star (cardinal compass / heraldic mullet) -->
+    <polygon
+      points="512,498 524,548 512,598 500,548"
+      fill="#fbbf24"/>
+    <polygon
+      points="462,548 512,536 562,548 512,560"
+      fill="#fbbf24"/>
+  </g>
+</svg>

@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import type { FieldSlot, FieldPosition, UnitCard, WeaponCard } from "@cards/shared";
+import { getHpPercent, getHpTone, type HpTone } from "@cards/shared";
 import type { CombatPreview } from "@cards/battle-engine";
+import { getUnitCombatStats } from "@cards/battle-engine";
 import { attackTypeBorders } from "../lib/colors";
 import { CardArt } from "./CardArt";
 import { CombatFx } from "./battle/CombatFx";
@@ -134,15 +136,19 @@ function EmptySlotPlaceholder({ pos }: { pos: FieldPosition }) {
   );
 }
 
+const HP_BAR_CLASS: Record<HpTone, string> = {
+  good: "bg-emerald-500",
+  warn: "bg-amber-500",
+  crit: "bg-red-500",
+};
+
 function HpBar({ current, max }: { current: number; max: number }) {
-  const hpPercent = Math.max(0, Math.min(100, (current / max) * 100));
-  const hpColor =
-    hpPercent > 60 ? "bg-emerald-500" : hpPercent > 30 ? "bg-amber-500" : "bg-red-500";
+  const pct = getHpPercent(current, max);
   return (
     <div className="absolute top-0 left-0 right-0 h-1 bg-black/40">
       <div
-        className={clsx("h-full transition-all duration-300", hpColor)}
-        style={{ width: `${hpPercent}%` }}
+        className={clsx("h-full transition-all duration-300", HP_BAR_CLASS[getHpTone(current, max)])}
+        style={{ width: `${pct}%` }}
       />
     </div>
   );
@@ -153,27 +159,20 @@ function HpBar({ current, max }: { current: number; max: number }) {
  * displayed values so what the player sees matches what combat calc uses.
  */
 function UnitStatsBlock({ unit, weapon }: { unit: UnitCard; weapon: WeaponCard | null }) {
-  const boost = weapon?.statBoost ?? {};
-  const boostFor = (k: keyof typeof boost) => boost[k] ?? 0;
-
-  const isMage = unit.stats.str === 0 && unit.stats.mag > 0;
-  const atkLabel = isMage ? "MAG" : "STR";
-  const atkBase = isMage ? unit.stats.mag : unit.stats.str;
-  const atkBoost = isMage ? boostFor("mag") : boostFor("str");
-
+  const s = getUnitCombatStats(unit, weapon);
   return (
     <>
       <div className="flex gap-2 text-[11px] mt-1.5">
-        <span className="text-red-400 font-bold">{unit.stats.hp} HP</span>
-        <span className={atkBoost ? "text-amber-300 font-bold" : "text-orange-300"}>
-          {atkBase + atkBoost} {atkLabel}
-          {atkBoost ? <span className="text-[9px] opacity-80"> (+{atkBoost})</span> : null}
+        <span className="text-red-400 font-bold">{s.hp} HP</span>
+        <span className={s.atkBoost ? "text-amber-300 font-bold" : "text-orange-300"}>
+          {s.atkBase + s.atkBoost} {s.atkLabel}
+          {s.atkBoost ? <span className="text-[9px] opacity-80"> (+{s.atkBoost})</span> : null}
         </span>
       </div>
       <div className="flex gap-2 text-[10px] opacity-70">
-        <StatChip color="text-blue-300" label="DEF" base={unit.stats.def} boost={boostFor("def")} />
-        <StatChip color="text-purple-300" label="RES" base={unit.stats.res} boost={boostFor("res")} />
-        <StatChip color="text-green-300" label="SPD" base={unit.stats.spd} boost={boostFor("spd")} />
+        <StatChip color="text-blue-300" label="DEF" base={s.def} boost={s.defBoost} />
+        <StatChip color="text-purple-300" label="RES" base={s.res} boost={s.resBoost} />
+        <StatChip color="text-green-300" label="SPD" base={s.spd} boost={s.spdBoost} />
       </div>
     </>
   );

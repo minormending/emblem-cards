@@ -19,13 +19,3 @@ export const attackTypeBorders: Record<AttackType, string> = {
   wind: "border-wind",
   thunder: "border-thunder",
 };
-
-export const attackTypeLabels: Record<AttackType, string> = {
-  sword: "Sword",
-  axe: "Axe",
-  lance: "Lance",
-  bow: "Bow",
-  fire: "Fire",
-  wind: "Wind",
-  thunder: "Thunder",
-};

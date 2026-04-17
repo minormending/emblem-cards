@@ -57,6 +57,10 @@ export { deployCard } from "./deploy.js";
 export { checkWinCondition } from "./win.js";
 export { resolveEffects } from "./effects.js";
 
+// ── Display helpers ──
+export { getUnitCombatStats } from "./combatDisplay.js";
+export type { UnitCombatStats } from "./combatDisplay.js";
+
 // ── AI opponent ──
 export { executeAITurn } from "./ai/aiPlayer.js";
 export { pickBestAction, explainAction } from "./ai/evaluate.js";

@@ -13,8 +13,8 @@ import type {
   SupportCard,
   TacticCard,
 } from '@cards/shared';
-import { attackTypeHex, attackTypeLabels, cardTypeColor } from '../lib/colors';
-import { effectLabel } from '../lib/effects';
+import { attackTypeLabels, effectLabel, formatWeaponBoosts, formatSupportPair } from '@cards/shared';
+import { attackTypeHex, cardTypeColor } from '../lib/colors';
 import { useGameStore } from '../store/gameStore';
 import { CardArt } from './CardArt';
 
@@ -75,7 +75,10 @@ export function CardView({
       <View style={styles.artWrap}>
         <CardArt
           card={card}
-          height={small ? 48 : 64}
+          // Small cards (hand + deck list) crop to a fixed 48-px strip to save
+          // space. Full-size cards (inspector, winner screen) render at the
+          // source's native 80:72 aspect ratio so the whole image is visible.
+          height={small ? 48 : 132 * (72 / 80)}
           width={small ? 96 : 132}
         />
         {energyShort != null && energyShort > 0 && (
@@ -123,10 +126,7 @@ function UnitBody({ card, small }: { card: UnitCard; small?: boolean }) {
 }
 
 function WeaponBody({ card, small }: { card: WeaponCard; small?: boolean }) {
-  const boosts = Object.entries(card.statBoost)
-    .filter(([, v]) => v !== undefined && v !== 0)
-    .map(([k, v]) => `+${v} ${k.toUpperCase()}`)
-    .join(', ');
+  const boosts = formatWeaponBoosts(card);
   return (
     <>
       <View style={styles.rowBetween}>
@@ -163,11 +163,7 @@ function SupportBody({ card, small }: { card: SupportCard; small?: boolean }) {
     <>
       <Text style={styles.metaText}>SUPPORT</Text>
       <Text style={[styles.name, small && styles.nameSmall]}>{card.name}</Text>
-      <Text style={styles.support}>
-        {card.pairRequirement.classA === card.pairRequirement.classB
-          ? `2× ${card.pairRequirement.classA}`
-          : `${card.pairRequirement.classA} or ${card.pairRequirement.classB}`}
-      </Text>
+      <Text style={styles.support}>{formatSupportPair(card)}</Text>
       <Effects effects={card.effects} />
     </>
   );

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Emblem Cards",
     "slug": "emblem-cards",
-    "version": "1.0.4",
+    "version": "1.0.6",
     "orientation": "default",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
     },
     "android": {
       "package": "com.emblemcards.game",
-      "versionCode": 5,
+      "versionCode": 7,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0b0d12"

@@ -1,6 +1,14 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import type { FieldSlot, FieldPosition } from '@cards/shared';
+import { getHpPercent, getHpTone, type HpTone } from '@cards/shared';
+
+const HP_BAR_COLOR: Record<HpTone, string> = {
+  good: '#10b981',
+  warn: '#f59e0b',
+  crit: '#ef4444',
+};
 import type { CombatPreview } from '@cards/battle-engine';
+import { getUnitCombatStats } from '@cards/battle-engine';
 import { attackTypeHex } from '../lib/colors';
 import { useGameStore } from '../store/gameStore';
 import { CombatFx } from './battle/CombatFx';
@@ -41,12 +49,8 @@ export function FieldSlotView({
     ? attackTypeHex[unit.attackType]
     : 'rgba(255,255,255,0.1)';
 
-  const hpPercent =
-    unit && unit.stats
-      ? Math.max(0, Math.min(100, (unit.stats.hp / unit.maxHp) * 100))
-      : 0;
-  const hpColor =
-    hpPercent > 60 ? '#10b981' : hpPercent > 30 ? '#f59e0b' : '#ef4444';
+  const hpPercent = unit ? getHpPercent(unit.stats.hp, unit.maxHp) : 0;
+  const hpColor = unit ? HP_BAR_COLOR[getHpTone(unit.stats.hp, unit.maxHp)] : '#ef4444';
 
   return (
     <Pressable
@@ -76,61 +80,67 @@ export function FieldSlotView({
               }}
             />
           </View>
-          <View style={styles.artMiniWrap}>
-            <CardArtMini card={unit} height={24} />
-          </View>
-          <Text style={styles.unitName} numberOfLines={1}>
-            {unit.name}
-          </Text>
-          {unit.isLord && (
-            <View style={styles.lordBadge}>
-              <Text style={styles.lordText}>LORD</Text>
-            </View>
-          )}
-          {(() => {
-            const boost = weapon?.statBoost ?? {};
-            const b = (k: keyof typeof boost) => boost[k] ?? 0;
-            // Magical vs physical is decided by attackType, never by the
-            // current stat values. A buff that pumps STR on a Mage must not
-            // flip the display from MAG — the Mage still attacks magically.
-            const isMage =
-              unit.attackType === 'fire' ||
-              unit.attackType === 'wind' ||
-              unit.attackType === 'thunder';
-            const atkBase = isMage ? unit.stats.mag : unit.stats.str;
-            // STR/MAG are interchangeable attack-stat labels — a weapon
-            // authored with +STR still powers a magical attacker, and
-            // vice versa. Mirrors getWeaponBoost() in the damage engine.
-            const rawAtkBoost = isMage ? b('mag') : b('str');
-            const atkBoost = rawAtkBoost || (isMage ? b('str') : b('mag'));
-            const def = unit.stats.def + b('def');
-            const res = unit.stats.res + b('res');
-            return (
-              <>
-                <Text style={styles.statsLine}>
-                  <Text style={{ color: '#f87171' }}>{unit.stats.hp}</Text>
-                  <Text style={styles.statLabel}> HP  </Text>
-                  <Text style={{ color: atkBoost ? '#fbbf24' : '#fdba74' }}>
-                    {atkBase + atkBoost}
+          {/*
+            Art width derives from the actual slot width (or a 80-px default
+            when the parent didn't pass a size prop). Passing a numeric width
+            lets CardArtMini render the bitmap at a known size, which is
+            required for top-anchored cover to line up — a '92%' wrapper
+            leaves the bitmap narrower than the gradient behind it.
+          */}
+          {/*
+            Art fills whatever vertical room is left between the HP bar and
+            the bottom footer. The footer block is roughly 48 px tall (name
+            + two stat lines + optional weapon badge), so we reserve that
+            plus paddings from the slot height.
+          */}
+          <CardArtMini
+            card={unit}
+            height={Math.max(24, (size?.height ?? 112) - 58)}
+            width={Math.round((size?.width ?? 92) * 0.92)}
+          />
+          {/*
+            Footer block: name + stats + weapon badge. `marginTop: auto`
+            pushes it to the bottom of the slot so the art stays pinned at
+            the top and gets as much vertical room as the slot can give it.
+          */}
+          <View style={styles.footer}>
+            <Text style={styles.unitName} numberOfLines={1}>
+              {unit.name}
+            </Text>
+            {unit.isLord && (
+              <View style={styles.lordBadge}>
+                <Text style={styles.lordText}>LORD</Text>
+              </View>
+            )}
+            {(() => {
+              const s = getUnitCombatStats(unit, weapon);
+              return (
+                <>
+                  <Text style={styles.statsLine}>
+                    <Text style={{ color: '#f87171' }}>{s.hp}</Text>
+                    <Text style={styles.statLabel}> HP  </Text>
+                    <Text style={{ color: s.atkBoost ? '#fbbf24' : '#fdba74' }}>
+                      {s.atkBase + s.atkBoost}
+                    </Text>
+                    <Text style={styles.statLabel}> {s.atkLabel}</Text>
                   </Text>
-                  <Text style={styles.statLabel}> {isMage ? 'MAG' : 'STR'}</Text>
+                  <Text style={styles.statsLineSub}>
+                    <Text style={{ color: '#93c5fd' }}>{s.def + s.defBoost}</Text>
+                    <Text style={styles.statLabel}> DEF  </Text>
+                    <Text style={{ color: '#c4b5fd' }}>{s.res + s.resBoost}</Text>
+                    <Text style={styles.statLabel}> RES</Text>
+                  </Text>
+                </>
+              );
+            })()}
+            {weapon && (
+              <View style={styles.weaponBadge}>
+                <Text style={styles.weaponText} numberOfLines={1}>
+                  {weapon.name}
                 </Text>
-                <Text style={styles.statsLineSub}>
-                  <Text style={{ color: '#93c5fd' }}>{def}</Text>
-                  <Text style={styles.statLabel}> DEF  </Text>
-                  <Text style={{ color: '#c4b5fd' }}>{res}</Text>
-                  <Text style={styles.statLabel}> RES</Text>
-                </Text>
-              </>
-            );
-          })()}
-          {weapon && (
-            <View style={styles.weaponBadge}>
-              <Text style={styles.weaponText} numberOfLines={1}>
-                {weapon.name}
-              </Text>
-            </View>
-          )}
+              </View>
+            )}
+          </View>
           {isOwn && hasActed && (
             <View style={styles.doneBadge}>
               <Text style={styles.doneText}>Done</Text>
@@ -174,9 +184,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: '#1f2937',
     alignItems: 'center',
-    justifyContent: 'center',
+    // Flow content from the top so the unit art pins under the HP bar.
+    // `justifyContent: center` was fighting the CardArtMini's top-anchor
+    // crop — the wrapper would sit mid-slot and the visible portion was
+    // the middle of the image instead of the face.
+    justifyContent: 'flex-start',
     overflow: 'hidden',
-    padding: 4,
+    paddingHorizontal: 4,
+    paddingTop: 6,
+    paddingBottom: 4,
   },
   empty: {
     backgroundColor: 'rgba(17,24,39,0.4)',
@@ -209,12 +225,15 @@ const styles = StyleSheet.create({
     height: 3,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  artMiniWrap: {
-    width: '92%',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginTop: 4,
+  // artMiniWrap removed — CardArtMini now handles its own clipping + width.
+  footer: {
+    // Flex `marginTop: auto` floats the name+stats block to the slot's
+    // bottom edge while the art stays pinned at the top.
+    marginTop: 'auto',
+    alignItems: 'center',
+    width: '100%',
   },
+
   unitName: {
     color: '#fff',
     fontSize: 11,

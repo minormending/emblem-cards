@@ -36,7 +36,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   content: {
+    // flexGrow:1 lets the contentContainer fill the full ScrollView so
+    // justifyContent can actually center the card vertically. Without it
+    // the container shrinks to the card's height and pins to the top.
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 20,
   },
 });

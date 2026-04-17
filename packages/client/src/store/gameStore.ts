@@ -18,7 +18,7 @@ import type { Card, FieldPosition, GameEvent, GameState, GameView, MatchStats } 
 import { MESSAGE_DURATION_MS } from "@cards/shared";
 import { createGame, drawPhase } from "@cards/battle-engine";
 import { getSocket, disconnectSocket } from "./socket";
-import { buildRandomDeck } from "../lib/deckBuilder";
+import { buildRandomDeck } from "@cards/card-engine";
 import { useLogStore } from "./logStore";
 import { loadDecks, saveDecks } from "../lib/decks";
 import { getPlayerId, getDisplayName } from "../lib/identity";
