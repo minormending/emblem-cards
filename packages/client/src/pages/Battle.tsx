@@ -18,6 +18,7 @@ import { TurnBanner } from "../components/battle/TurnBanner";
 import { ActionHint } from "../components/battle/ActionHint";
 import { Toast } from "../components/battle/Toast";
 import { FieldGrid } from "../components/battle/FieldGrid";
+import { CardPlayedOverlay } from "../components/battle/CardPlayedOverlay";
 import { WinnerScreen } from "../components/battle/WinnerScreen";
 import { TurnTransitionOverlay } from "../components/battle/TurnTransitionOverlay";
 import { useBattleSlotHandlers } from "../hooks/useBattleSlotHandlers";
@@ -90,6 +91,7 @@ export function Battle() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-950 to-gray-900">
       <CardInspector />
+      <CardPlayedOverlay />
       <BattleHints />
 
       <TopBar

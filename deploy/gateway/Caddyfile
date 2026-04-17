@@ -12,12 +12,19 @@
 
 	# Global security headers. Applied to every response, including the
 	# landing page and any app passthrough.
+	#
+	# CSP is the defense-in-depth lid: scripts and network connections are
+	# locked to same-origin, so an XSS can't pull payloads from attacker-
+	# controlled hosts. `'unsafe-inline'` for style is required by Tailwind's
+	# arbitrary values (e.g. `text-[10px]`) which emit inline style. Socket.io
+	# uses same-origin wss, covered by `connect-src 'self'`.
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		-Server
 	}
 

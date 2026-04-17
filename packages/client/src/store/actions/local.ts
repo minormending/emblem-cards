@@ -25,6 +25,7 @@ import {
 import type { useGameStore } from "../gameStore";
 import { useLogStore } from "../logStore";
 import { useFxStore, isMagicalAttack } from "../fxStore";
+import { spawnPlayedFromEvents } from "../spawnPlayed";
 import { sfx } from "../../lib/sounds";
 import { scheduleAITurn } from "../aiTurn";
 import type { GameActions } from "./types";
@@ -51,6 +52,8 @@ export function createLocalActions(store: Store): GameActions {
         appendMatchEvents(store, result.value);
         // Item/tactic damage events also get VFX (e.g. Meteor, Bolting).
         spawnCombatFx(gameState, result.value, mode);
+        // Center-screen flash for non-unit cards (items/weapons/supports).
+        spawnPlayedFromEvents(result.value, "own");
       }
       store.setState({ gameState: { ...gameState }, selectedHandIndex: null });
     },

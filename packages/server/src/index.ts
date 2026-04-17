@@ -17,9 +17,37 @@ const defaultOrigins = [
   "http://localhost:5174",
   "http://localhost:5175",
 ];
-const corsOrigin = process.env.CLIENT_ORIGIN
-  ? process.env.CLIENT_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean)
-  : defaultOrigins;
+
+/**
+ * Parse the `CLIENT_ORIGIN` env var and fail loudly on malformed entries. A
+ * typo like `https//foo.com` (missing colon) would otherwise become a valid
+ * CORS origin and silently widen exposure.
+ */
+function parseCorsOrigins(raw: string | undefined): string[] {
+  if (!raw) return defaultOrigins;
+  const origins = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const invalid: string[] = [];
+  for (const o of origins) {
+    try {
+      const u = new URL(o);
+      if (u.protocol !== "http:" && u.protocol !== "https:") invalid.push(o);
+    } catch {
+      invalid.push(o);
+    }
+  }
+  if (invalid.length > 0) {
+    throw new Error(
+      `CLIENT_ORIGIN contains invalid entries: ${invalid.join(", ")}. ` +
+      `Each entry must be an absolute http/https URL.`,
+    );
+  }
+  if (origins.length === 0) {
+    throw new Error("CLIENT_ORIGIN was set but contained no usable entries.");
+  }
+  return origins;
+}
+
+const corsOrigin = parseCorsOrigins(process.env.CLIENT_ORIGIN);
 
 const httpServer = createServer((req, res) => {
   if (req.url === "/healthz") {
@@ -45,6 +73,27 @@ const rooms = new Map<string, GameRoom>();
 const playerRooms = new Map<string, string>();
 
 let roomCounter = 0;
+
+// ── Per-IP connection cap ──
+//
+// Bounds concurrent sockets from a single IP so a connect-loop can't exhaust
+// memory or file descriptors. The threshold is generous (10) to absorb
+// multiple browser tabs and legitimate shared-NAT users; true abuse quickly
+// exceeds it.
+const MAX_CONNECTIONS_PER_IP = 10;
+const connectionsPerIp = new Map<string, number>();
+
+io.use((socket, next) => {
+  const ip = socket.handshake.address;
+  if (!ip) return next();
+  const current = connectionsPerIp.get(ip) ?? 0;
+  if (current >= MAX_CONNECTIONS_PER_IP) {
+    log.warn("connect", `refused: too many connections from ${ip}`, { current });
+    return next(new Error("Too many connections from this address"));
+  }
+  connectionsPerIp.set(ip, current + 1);
+  next();
+});
 
 // ── Helpers ──
 
@@ -81,28 +130,31 @@ function shortId(id: string | undefined | null): string {
 }
 
 io.on("connection", (socket) => {
+  // Remote IP is stable across reconnects for a given client, so the per-IP
+  // bucket survives socket churn even when the per-socket bucket resets.
+  const remoteIp = socket.handshake.address || null;
   log.info("connect", `${socket.id} connected`);
 
   // Rate-limit every inbound event. A misbehaving client gets disconnected
   // on sustained overage rather than just dropped events — cheaper to kick
   // than to keep validating.
   socket.use((_event, next) => {
-    if (rateAllow(socket.id)) return next();
-    log.warn("rate", `${socket.id} rate-limited, disconnecting`);
+    if (rateAllow(socket.id, remoteIp)) return next();
+    log.warn("rate", `${socket.id} rate-limited, disconnecting`, { ip: remoteIp });
     socket.disconnect(true);
   });
 
   // ── Auth ──
 
   socket.on("auth", (payload) => {
-    const validationError = validateAuth(payload);
-    if (validationError) {
-      socket.emit("auth:error", validationError);
-      log.warn("auth", `${socket.id} rejected`, { reason: validationError });
+    const result = validateAuth(payload);
+    if (!result.ok) {
+      socket.emit("auth:error", result.error);
+      log.warn("auth", `${socket.id} rejected`, { reason: result.error });
       return;
     }
 
-    const { playerId, displayName } = payload;
+    const { playerId, displayName } = result;
     const { oldSocketId } = sessions.authenticate(socket.id, playerId, displayName);
 
     if (oldSocketId) {
@@ -224,7 +276,17 @@ io.on("connection", (socket) => {
       return socket.emit("game:error", formatError(result.error));
     }
 
-    socket.emit("game:action-result", { type: "deploy" });
+    const deployResult = {
+      type: "deploy" as const,
+      events: result.value,
+      actorId: ctx.playerId,
+    };
+    // Both players see the deploy result — the opponent needs the events to
+    // render the card-played overlay for items/weapons/supports.
+    socket.emit("game:action-result", deployResult);
+    const opponentId = ctx.room.playerIds.find((id) => id !== ctx.playerId);
+    const opponentSocket = opponentId ? socketIdFor(opponentId) : null;
+    if (opponentSocket) io.to(opponentSocket).emit("game:action-result", deployResult);
     broadcastGameUpdate(ctx.room);
   });
 
@@ -246,7 +308,13 @@ io.on("connection", (socket) => {
     // successful attack, but type-safe anyway).
     const damageEvent = result.value.find((e) => e.kind === "unit_damaged");
     const damage = damageEvent?.kind === "unit_damaged" ? damageEvent.amount : 0;
-    const attackResult = { type: "attack" as const, damage, targetPos: to };
+    const attackResult = {
+      type: "attack" as const,
+      damage,
+      targetPos: to,
+      events: result.value,
+      actorId: ctx.playerId,
+    };
 
     socket.emit("game:action-result", attackResult);
     const opponentId = ctx.room.playerIds.find((id) => id !== ctx.playerId);
@@ -274,6 +342,11 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     rateRelease(socket.id);
+    if (remoteIp) {
+      const next = (connectionsPerIp.get(remoteIp) ?? 1) - 1;
+      if (next <= 0) connectionsPerIp.delete(remoteIp);
+      else connectionsPerIp.set(remoteIp, next);
+    }
     const session = sessions.removeBySocket(socket.id);
     const playerId = session?.playerId;
     log.info("disconnect", `${socket.id} disconnected`, { playerId: shortId(playerId) });

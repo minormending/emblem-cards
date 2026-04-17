@@ -112,3 +112,16 @@ body {
   30% { transform: translate(-50%, -14px) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -48px) scale(0.95); }
 }
+
+/* Card-played flash — pop in, hold, fade out. Duration matches
+   PLAYED_CARD_DURATION_MS in fxStore.ts. */
+@keyframes cardFloat {
+  0%   { opacity: 0; transform: scale(0.7) translateY(12px); }
+  15%  { opacity: 1; transform: scale(1.04) translateY(0); }
+  25%  { transform: scale(1) translateY(0); }
+  80%  { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.95) translateY(-10px); }
+}
+.animate-card-float {
+  animation: cardFloat 1100ms ease-out forwards;
+}

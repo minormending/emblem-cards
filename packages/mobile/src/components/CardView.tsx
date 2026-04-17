@@ -73,7 +73,11 @@ export function CardView({
       </View>
 
       <View style={styles.artWrap}>
-        <CardArt card={card} height={small ? 48 : 64} />
+        <CardArt
+          card={card}
+          height={small ? 48 : 64}
+          width={small ? 96 : 132}
+        />
         {energyShort != null && energyShort > 0 && (
           <View style={styles.energyOverlay}>
             <Text style={styles.energyShortText}>Need {energyShort} more</Text>

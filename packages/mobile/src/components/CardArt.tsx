@@ -295,11 +295,12 @@ export function CardArt({ card, height = 72, width = '100%' }: CardArtProps) {
   const gradId = nextId();
   const glowId = nextId();
 
+  // Fabric + react-native-svg 15 renders 0-width Svgs when width is passed as a
+  // prop — a style object forces layout to pick it up correctly.
   return (
     <Svg
       viewBox="0 0 100 80"
-      width={width}
-      height={height}
+      style={{ width: width as number | `${number}%`, height }}
       preserveAspectRatio="xMidYMid slice"
     >
       <Defs>
@@ -326,17 +327,18 @@ export function CardArt({ card, height = 72, width = '100%' }: CardArtProps) {
 export function CardArtMini({
   card,
   height = 32,
+  width = 72,
 }: {
   card: Extract<Card, { type: 'unit' }>;
   height?: number;
+  width?: number;
 }) {
   const [from, to] = getGradient(card);
   const gradId = nextId();
   return (
     <Svg
       viewBox="0 0 100 80"
-      width="100%"
-      height={height}
+      style={{ width, height }}
       preserveAspectRatio="xMidYMid slice"
     >
       <Defs>

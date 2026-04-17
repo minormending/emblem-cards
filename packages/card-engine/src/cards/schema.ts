@@ -85,8 +85,15 @@ const EffectSchema = z.discriminatedUnion("kind", [
 
 // ── Cards ──
 
+// Card ids feed into asset URLs (e.g. `/cards/<id>.png`) and Map keys, so
+// restrict to kebab-case slugs — no dots, slashes, or whitespace that could
+// change path resolution or break logs/lookups.
+const CardIdSchema = z.string().regex(/^[a-z0-9-]+$/, {
+  message: "id must be lowercase alphanumerics and hyphens",
+});
+
 const commonStringFields = {
-  id: z.string().min(1),
+  id: CardIdSchema,
   name: z.string().min(1),
   cost: z.number().int().nonnegative(),
   flavor: z.string().optional(),

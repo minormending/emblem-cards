@@ -25,6 +25,7 @@ import { TurnBanner } from '../components/battle/TurnBanner';
 import { MatchClock } from '../components/battle/MatchClock';
 import { Toast } from '../components/battle/Toast';
 import { FieldGrid } from '../components/battle/FieldGrid';
+import { CardPlayedOverlay } from '../components/battle/CardPlayedOverlay';
 import { TurnTransitionOverlay } from '../components/battle/TurnTransitionOverlay';
 import { ConnectionBanner } from '../components/battle/ConnectionBanner';
 import { WinnerScreen } from '../components/battle/WinnerScreen';
@@ -204,6 +205,7 @@ export function Battle() {
   return (
     <View style={styles.container}>
       <CardInspector />
+      <CardPlayedOverlay />
       <BattleHints />
 
       {topBar}

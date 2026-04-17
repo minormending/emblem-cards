@@ -1,4 +1,5 @@
 import type { Card, FieldPosition, GameState, Player } from "./types.js";
+import type { GameEvent } from "./events.js";
 import type { MatchStats } from "./stats.js";
 
 // ── Client → Server events ──
@@ -64,11 +65,15 @@ export interface ServerToClientEvents {
   "game:update": (view: GameView) => void;
   /** An action failed */
   "game:error": (message: string) => void;
-  /** Action result for feedback (damage dealt, etc.) */
+  /** Action result for feedback (damage dealt, played cards, etc.) */
   "game:action-result": (result: {
     type: "deploy" | "attack" | "end-turn";
     damage?: number;
     targetPos?: FieldPosition;
+    /** Events produced by this action — lets clients drive overlay/SFX. */
+    events?: GameEvent[];
+    /** Player who initiated the action (for perspective-aware UI). */
+    actorId?: string;
   }) => void;
   /** Game is over. Includes end-of-match stats for the victory screen. */
   "game:over": (data: { winner: string; turnCount: number; stats: MatchStats | null }) => void;

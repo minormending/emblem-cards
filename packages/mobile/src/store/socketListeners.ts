@@ -1,5 +1,7 @@
 import type { GameSocket } from './socket';
 import type { useGameStore } from './gameStore';
+import { spawnPlayedFromEvents } from './spawnPlayed';
+import { getPlayerId } from '../lib/identity';
 
 type StoreApi = typeof useGameStore;
 
@@ -35,6 +37,10 @@ export function attachSocketListeners(socket: GameSocket, store: StoreApi): void
   socket.on('game:action-result', (result) => {
     if (result.type === 'attack' && result.damage != null) {
       store.getState().showMessage(`${result.damage} damage!`);
+    }
+    if (result.events && result.events.length > 0) {
+      const side = result.actorId === getPlayerId() ? 'own' : 'enemy';
+      spawnPlayedFromEvents(result.events, side);
     }
   });
   socket.on('game:over', ({ stats }) => {

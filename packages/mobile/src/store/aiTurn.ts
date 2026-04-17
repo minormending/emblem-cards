@@ -17,6 +17,7 @@ import type { AIAction } from '@cards/battle-engine';
 import type { useGameStore } from './gameStore';
 import { useLogStore } from './logStore';
 import { appendMatchEvents } from './actions/local';
+import { spawnPlayedFromEvents } from './spawnPlayed';
 import { useFxStore, isMagicalAttack } from './fxStore';
 import { sfx } from '../lib/sounds';
 
@@ -103,6 +104,7 @@ function applyActionFx(
 ): void {
   useLogStore.getState().addFromEvents(gs, events);
   appendMatchEvents(store, events);
+  spawnPlayedFromEvents(events, 'enemy');
   const show = store.getState().showMessage;
   spawnCombatFx(gs, events);
   if (action.type === 'deploy') {
