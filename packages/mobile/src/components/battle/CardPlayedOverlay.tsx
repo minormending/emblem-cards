@@ -37,14 +37,14 @@ function OneCard({ fx }: { fx: PlayedCardFx }) {
   useEffect(() => {
     opacity.value = withSequence(
       withTiming(1, { duration: 160, easing: Easing.out(Easing.quad) }),
-      withTiming(1, { duration: 700 }),
-      withTiming(0, { duration: 240, easing: Easing.in(Easing.quad) }),
+      withTiming(1, { duration: 1500 }),
+      withTiming(0, { duration: 340, easing: Easing.in(Easing.quad) }),
     );
     scale.value = withSequence(
       withTiming(1.05, { duration: 160, easing: Easing.out(Easing.quad) }),
       withTiming(1, { duration: 100 }),
-      withTiming(1, { duration: 600 }),
-      withTiming(0.95, { duration: 240, easing: Easing.in(Easing.quad) }),
+      withTiming(1, { duration: 1400 }),
+      withTiming(0.95, { duration: 340, easing: Easing.in(Easing.quad) }),
     );
   }, []);
 

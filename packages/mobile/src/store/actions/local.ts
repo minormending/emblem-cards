@@ -9,7 +9,7 @@ import {
 import type { useGameStore } from '../gameStore';
 import { useLogStore } from '../logStore';
 import { useFxStore, isMagicalAttack } from '../fxStore';
-import { spawnPlayedFromEvents } from '../spawnPlayed';
+import { spawnPlayedFromEvents, spawnSpotlightsFromEvents } from '../spawnPlayed';
 import { sfx } from '../../lib/sounds';
 import { scheduleAITurn } from '../aiTurn';
 import type { GameActions } from './types';
@@ -35,6 +35,9 @@ export function createLocalActions(store: Store): GameActions {
         appendMatchEvents(store, result.value);
         spawnCombatFx(gameState, result.value, mode);
         spawnPlayedFromEvents(result.value, 'own');
+        const viewerId =
+          gameState.players[mode === 'ai' ? 0 : gameState.currentPlayerIndex].id;
+        spawnSpotlightsFromEvents(result.value, gameState, viewerId, 'own');
       }
       store.setState({ gameState: { ...gameState }, selectedHandIndex: null });
     },

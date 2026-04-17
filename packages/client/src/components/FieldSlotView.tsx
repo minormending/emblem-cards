@@ -17,6 +17,8 @@ interface FieldSlotViewProps {
   lastHit?: boolean;
   /** Damage preview when this slot is a legal attack target. */
   attackPreview?: CombatPreview | null;
+  /** Pulse ring + glow — shown while the related card-played overlay is up. */
+  spotlight?: boolean;
 }
 
 export function FieldSlotView({
@@ -29,6 +31,7 @@ export function FieldSlotView({
   onClick,
   lastHit,
   attackPreview,
+  spotlight,
 }: FieldSlotViewProps) {
   const { unit, weapon, hasActed } = slot;
   const setInspectedCard = useGameStore((s) => s.setInspectedCard);
@@ -55,6 +58,7 @@ export function FieldSlotView({
         isDeployTarget && !unit && "border-emerald-400 bg-emerald-950/40 border-solid animate-pulse",
         isAttackTarget && unit && "border-red-400 bg-red-950/30 border-solid",
         lastHit && "animate-[shake_0.3s_ease-out]",
+        spotlight && "ring-4 ring-amber-300 shadow-[0_0_24px_6px_rgba(251,191,36,0.55)] animate-[pulseGlow_1.8s_ease-in-out_1]",
         !isOwn && unit && "opacity-90",
         isOwn && unit && hasActed && "opacity-50 saturate-50",
       )}

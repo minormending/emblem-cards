@@ -29,7 +29,7 @@ import type { AIAction } from "@cards/battle-engine";
 import type { useGameStore } from "./gameStore";
 import { useLogStore } from "./logStore";
 import { appendMatchEvents } from "./actions/local";
-import { spawnPlayedFromEvents } from "./spawnPlayed";
+import { spawnPlayedFromEvents, spawnSpotlightsFromEvents } from "./spawnPlayed";
 import { useFxStore, isMagicalAttack } from "./fxStore";
 import { sfx } from "../lib/sounds";
 
@@ -135,6 +135,8 @@ function applyActionFx(
   appendMatchEvents(store, events);
   // AI plays from the opponent seat — viewer sees them as "enemy" side.
   spawnPlayedFromEvents(events, "enemy");
+  // Viewer is always player 0 in AI mode; AI is the actor on the enemy side.
+  spawnSpotlightsFromEvents(events, gs, gs.players[0].id, "enemy");
 
   const show = store.getState().showMessage;
 

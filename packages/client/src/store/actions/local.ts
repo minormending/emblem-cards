@@ -25,7 +25,7 @@ import {
 import type { useGameStore } from "../gameStore";
 import { useLogStore } from "../logStore";
 import { useFxStore, isMagicalAttack } from "../fxStore";
-import { spawnPlayedFromEvents } from "../spawnPlayed";
+import { spawnPlayedFromEvents, spawnSpotlightsFromEvents } from "../spawnPlayed";
 import { sfx } from "../../lib/sounds";
 import { scheduleAITurn } from "../aiTurn";
 import type { GameActions } from "./types";
@@ -54,6 +54,9 @@ export function createLocalActions(store: Store): GameActions {
         spawnCombatFx(gameState, result.value, mode);
         // Center-screen flash for non-unit cards (items/weapons/supports).
         spawnPlayedFromEvents(result.value, "own");
+        // Spotlight the target slot(s) so the viewer can follow card → impact.
+        const viewerId = gameState.players[mode === "ai" ? 0 : gameState.currentPlayerIndex].id;
+        spawnSpotlightsFromEvents(result.value, gameState, viewerId, "own");
       }
       store.setState({ gameState: { ...gameState }, selectedHandIndex: null });
     },

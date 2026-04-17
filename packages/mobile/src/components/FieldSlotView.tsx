@@ -18,6 +18,8 @@ interface FieldSlotViewProps {
   attackPreview?: CombatPreview | null;
   /** Optional width — lets parent size slots to fit the field on narrow screens. */
   size?: { width: number; height: number };
+  /** Pulse ring + glow — shown while the related card-played overlay is up. */
+  spotlight?: boolean;
 }
 
 export function FieldSlotView({
@@ -31,6 +33,7 @@ export function FieldSlotView({
   lastHit,
   attackPreview,
   size,
+  spotlight,
 }: FieldSlotViewProps) {
   const { unit, weapon, hasActed } = slot;
   const setInspectedCard = useGameStore((s) => s.setInspectedCard);
@@ -58,6 +61,7 @@ export function FieldSlotView({
         isDeployTarget && !unit && styles.deployTarget,
         isAttackTarget && unit && styles.attackTarget,
         lastHit && { borderColor: '#ef4444' },
+        spotlight && styles.spotlit,
         isOwn && unit && hasActed && { opacity: 0.5 },
       ]}
     >
@@ -187,6 +191,15 @@ const styles = StyleSheet.create({
   attackTarget: {
     borderColor: '#f87171',
     backgroundColor: 'rgba(127,29,29,0.3)',
+  },
+  spotlit: {
+    borderColor: '#fbbf24',
+    borderWidth: 3,
+    shadowColor: '#fbbf24',
+    shadowOpacity: 0.7,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 12,
   },
   hpBar: {
     position: 'absolute',

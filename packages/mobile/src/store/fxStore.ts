@@ -23,8 +23,15 @@ export interface CombatFx {
 }
 
 const FX_DURATION_MS = 650;
-const PLAYED_CARD_DURATION_MS = 1100;
+const PLAYED_CARD_DURATION_MS = 2000;
+const SPOTLIGHT_DURATION_MS = 1800;
 let nextId = 0;
+
+export interface SlotSpotlight {
+  id: number;
+  side: FxSide;
+  pos: FieldPosition;
+}
 
 export type PlayedCard =
   | { kind: 'item'; card: ItemCard | TacticCard }
@@ -36,14 +43,17 @@ export type PlayedCardFx = PlayedCard & { id: number };
 interface FxStore {
   effects: CombatFx[];
   playedCards: PlayedCardFx[];
+  spotlights: SlotSpotlight[];
   spawn: (fx: Omit<CombatFx, 'id'>) => void;
   spawnPlayedCard: (fx: PlayedCard) => void;
+  spawnSpotlight: (target: Omit<SlotSpotlight, 'id'>) => void;
   clearAll: () => void;
 }
 
 export const useFxStore = create<FxStore>((set) => ({
   effects: [],
   playedCards: [],
+  spotlights: [],
   spawn: (fx) => {
     const id = nextId++;
     set((s) => ({ effects: [...s.effects, { ...fx, id }] }));
@@ -58,7 +68,14 @@ export const useFxStore = create<FxStore>((set) => ({
       set((s) => ({ playedCards: s.playedCards.filter((c) => c.id !== id) }));
     }, PLAYED_CARD_DURATION_MS);
   },
-  clearAll: () => set({ effects: [], playedCards: [] }),
+  spawnSpotlight: (target) => {
+    const id = nextId++;
+    set((s) => ({ spotlights: [...s.spotlights, { ...target, id }] }));
+    setTimeout(() => {
+      set((s) => ({ spotlights: s.spotlights.filter((sp) => sp.id !== id) }));
+    }, SPOTLIGHT_DURATION_MS);
+  },
+  clearAll: () => set({ effects: [], playedCards: [], spotlights: [] }),
 }));
 
 const MAGICAL_TYPES: AttackType[] = ['fire', 'wind', 'thunder'];
