@@ -1,7 +1,7 @@
 # Build context: repo root
 # syntax=docker/dockerfile:1.7
 
-FROM node:22.11-slim AS base
+FROM node:22-slim AS base
 RUN corepack enable
 WORKDIR /repo
 
@@ -21,7 +21,7 @@ COPY packages/server packages/server
 RUN pnpm exec turbo run build --filter=@cards/server
 RUN pnpm --filter=@cards/server deploy --prod /out
 
-FROM node:22.11-slim AS runtime
+FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001

@@ -5,7 +5,7 @@
 # gateway Caddy in front of this container handles TLS, prefix stripping, and
 # reverse-proxying socket.io — this image only serves /srv on port 80.
 
-FROM node:22.11-slim AS base
+FROM node:22-slim AS base
 RUN corepack enable
 WORKDIR /repo
 
