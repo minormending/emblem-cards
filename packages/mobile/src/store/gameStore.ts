@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import type { Card, FieldPosition, GameEvent, GameState, GameView, MatchStats } from '@cards/shared';
+import type { Card, FieldPosition, GameEvent, GameState, GameView, MatchStats, TournamentOpponent } from '@cards/shared';
 import { MESSAGE_DURATION_MS, cloneCard } from '@cards/shared';
 import { createGame, drawPhase } from '@cards/battle-engine';
 import { getSocket, disconnectSocket } from './socket';
-import { buildRandomDeck } from '@cards/card-engine';
+import { buildRandomDeck, getCardById } from '@cards/card-engine';
 import { useLogStore } from './logStore';
 import { getPlayerId, getDisplayName } from '../lib/identity';
 import type { GameActions } from './actions/types';
@@ -11,9 +11,19 @@ import { createLocalActions } from './actions/local';
 import { createOnlineActions } from './actions/online';
 import { saveSession, clearSession, loadSession } from '../lib/session';
 import { saveDecks, loadDecks } from '../lib/decks';
+import { useTournamentStore } from './tournamentStore';
 
-type Screen = 'menu' | 'deck-builder' | 'matchmaking' | 'battle';
-type GameMode = 'local' | 'online' | 'ai';
+type Screen =
+  | 'menu'
+  | 'mode-select'
+  | 'deck-builder'
+  | 'matchmaking'
+  | 'battle'
+  | 'tournament-home'
+  | 'tournament-pre-match'
+  | 'tournament-reward'
+  | 'tournament-loss';
+type GameMode = 'local' | 'online' | 'ai' | 'tournament';
 
 interface GameStore {
   screen: Screen;
@@ -39,8 +49,13 @@ interface GameStore {
   lastHitPos: FieldPosition | null;
   message: string | null;
   inspectedCard: Card | null;
+  /** When in tournament mode, which opponent is being fought. */
+  currentOpponent: TournamentOpponent | null;
   setScreen: (screen: Screen) => void;
   setMode: (mode: GameMode) => void;
+  setCurrentOpponent: (opp: TournamentOpponent | null) => void;
+  /** Start a tournament battle against `opp` using the player's tournament deck. */
+  startTournamentBattle: (opp: TournamentOpponent) => void;
   setP1Deck: (deck: Card[]) => void;
   setP2Deck: (deck: Card[]) => void;
   setSelectedHandIndex: (i: number | null) => void;
@@ -153,10 +168,46 @@ export const useGameStore = create<GameStore>((set, get) => {
     roomRole: null,
     connectionStatus: 'idle',
     connectionError: null,
+    currentOpponent: null,
     ...FRESH_UI_STATE,
 
     setScreen: (screen) => set({ screen }),
     setMode: (mode) => set({ mode }),
+    setCurrentOpponent: (opp) => set({ currentOpponent: opp }),
+
+    startTournamentBattle: (opp) => {
+      // Resolve the opponent's card-ID deck into full Card instances. If a
+      // card ID no longer exists in the catalog we bail — better than crashing
+      // mid-battle.
+      const p2Deck: Card[] = [];
+      for (const id of opp.deck) {
+        const c = getCardById(id);
+        if (!c) {
+          useGameStore.getState().showMessage(`Missing card: ${id}`);
+          return;
+        }
+        p2Deck.push(cloneCard(c));
+      }
+      const tDeck = useTournamentStore.getState().tournamentDeck;
+      if (!tDeck || tDeck.length === 0) {
+        useGameStore.getState().showMessage('Build your tournament deck first');
+        return;
+      }
+      const p1Deck = tDeck.map(cloneCard);
+      useLogStore.getState().clear();
+      const state = createGame(p1Deck, p2Deck, 'You', opp.displayName);
+      drawPhase(state);
+      logSystemStart(state);
+      set({
+        mode: 'tournament',
+        currentOpponent: opp,
+        p1Deck,
+        p2Deck,
+        gameState: state,
+        screen: 'battle',
+        ...FRESH_UI_STATE,
+      });
+    },
     setP1Deck: (deck) => set({ p1Deck: deck }),
     setP2Deck: (deck) => set({ p2Deck: deck }),
     setSelectedHandIndex: (i) =>
@@ -177,7 +228,8 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     quickStart: () => {
       useLogStore.getState().clear();
-      const p1Deck = buildRandomDeck();
+      const { p1Deck: saved } = get();
+      const p1Deck = saved.length > 0 ? saved : buildRandomDeck();
       const p2Deck = buildRandomDeck();
       const state = createGame(p1Deck, p2Deck, 'You', 'AI');
       drawPhase(state);
@@ -252,12 +304,13 @@ export const useGameStore = create<GameStore>((set, get) => {
       // block the user from leaving the game.
       void clearSession();
       set({
-        screen: 'menu',
+        screen: 'mode-select',
         gameState: null,
         gameView: null,
         queuePosition: 0,
         roomCode: null,
         roomRole: null,
+        currentOpponent: null,
         connectionStatus: 'idle',
         connectionError: null,
         ...FRESH_UI_STATE,
@@ -330,6 +383,9 @@ useGameStore.subscribe((state) => {
 // and not persisted here.
 let lastSavedGameState: unknown = null;
 useGameStore.subscribe((state) => {
+  // Tournament battles are not auto-persisted as resumable sessions — the
+  // tournament flow owns its own save slot and routes win/loss to dedicated
+  // screens rather than the WinnerScreen.
   if (state.mode !== 'local' && state.mode !== 'ai') return;
   if (!state.gameState) return;
   if (state.gameState === lastSavedGameState) return;

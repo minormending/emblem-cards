@@ -5,6 +5,9 @@ import {
   AI_TURN_DELAY_MS,
 } from '@cards/shared';
 import {
+  AI_PRESETS,
+  DEFAULT_AI_CONFIG,
+  aggressionComponent,
   attackAction,
   currentPlayer,
   deployCard,
@@ -12,8 +15,10 @@ import {
   endTurn,
   explainAction,
   pickBestAction,
+  scoreAllActions,
+  scoreWithLookahead,
 } from '@cards/battle-engine';
-import type { AIAction } from '@cards/battle-engine';
+import type { AIAction, AIConfig } from '@cards/battle-engine';
 import type { useGameStore } from './gameStore';
 import { useLogStore } from './logStore';
 import { appendMatchEvents } from './actions/local';
@@ -48,7 +53,7 @@ function runNextAction(store: Store, iteration: number): void {
     finishAITurn(store, gs);
     return;
   }
-  const action = pickBestAction(gs);
+  const action = pickNextAction(state, gs);
   if (!action) {
     finishAITurn(store, gs);
     return;
@@ -166,10 +171,55 @@ function finishAITurn(store: Store, gs: GameState): void {
 }
 
 function canAIAct(state: ReturnType<Store['getState']>): boolean {
-  if (state.mode !== 'ai') return false;
+  if (state.mode !== 'ai' && state.mode !== 'tournament') return false;
   if (!state.gameState) return false;
   if (state.gameState.winner) return false;
   return state.gameState.currentPlayerIndex === 1;
+}
+
+/** Branch cap for depth-2 lookahead, mirrors engine-side LOOKAHEAD_BRANCH_CAP. */
+const LOOKAHEAD_BRANCH_CAP = 6;
+
+/**
+ * Pick the next action the AI will take. In default AI mode this delegates
+ * to `pickBestAction`. In tournament mode it honors the opponent's AIConfig
+ * preset (top-K sampling, aggression weight, depth-2 lookahead).
+ */
+function pickNextAction(
+  state: ReturnType<Store['getState']>,
+  gs: GameState,
+): AIAction | null {
+  if (state.mode !== 'tournament' || !state.currentOpponent) {
+    return pickBestAction(gs);
+  }
+
+  const config: AIConfig = AI_PRESETS[state.currentOpponent.ai] ?? DEFAULT_AI_CONFIG;
+  const all = scoreAllActions(gs);
+  if (all.length === 0) return null;
+
+  const weighted = all.map((a) => ({
+    action: a,
+    score:
+      config.aggressionWeight === 1
+        ? a.score
+        : a.score + (config.aggressionWeight - 1) * aggressionComponent(a),
+  }));
+  weighted.sort((a, b) => b.score - a.score);
+
+  if (config.searchDepth === 2) {
+    const branches = weighted.slice(0, LOOKAHEAD_BRANCH_CAP).map((w) => ({
+      action: w.action,
+      score: scoreWithLookahead(gs, w.action) + (w.score - w.action.score),
+    }));
+    branches.sort((a, b) => b.score - a.score);
+    for (let i = 0; i < branches.length; i++) weighted[i] = branches[i];
+  }
+
+  const qualified = weighted.filter((w) => w.score > config.scoreThreshold);
+  if (qualified.length === 0) return null;
+  const k = Math.max(1, Math.min(config.topK, qualified.length));
+  const idx = k === 1 ? 0 : Math.floor(Math.random() * k);
+  return qualified[idx].action;
 }
 
 function triggerShake(store: Store, pos: FieldPosition): void {

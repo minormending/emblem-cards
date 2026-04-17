@@ -22,8 +22,32 @@ export function useBackHandler(): void {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       const store = useGameStore.getState();
       if (store.screen === 'menu') return false;
-      if (store.screen === 'deck-builder') {
+      if (store.screen === 'mode-select') {
         store.setScreen('menu');
+        return true;
+      }
+      if (store.screen === 'deck-builder') {
+        store.setScreen(
+          store.mode === 'tournament' ? 'tournament-pre-match' : 'menu',
+        );
+        return true;
+      }
+      if (store.screen === 'tournament-home') {
+        store.setScreen('menu');
+        return true;
+      }
+      if (store.screen === 'tournament-pre-match') {
+        store.setScreen('tournament-home');
+        return true;
+      }
+      if (
+        store.screen === 'tournament-reward' ||
+        store.screen === 'tournament-loss'
+      ) {
+        // Same flow as tapping the primary button — return to the ladder.
+        store.setCurrentOpponent(null);
+        store.setMode('tournament');
+        store.setScreen('tournament-home');
         return true;
       }
       if (store.screen === 'matchmaking') {

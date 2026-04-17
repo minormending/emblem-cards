@@ -81,7 +81,7 @@ export function BattleHints() {
   if (!enabled) return null;
   if (!store.gameState || store.gameState.winner) return null;
   // Only show hints on the human player's turn (index 0 in AI mode / local)
-  if (store.mode === "ai" && store.gameState.currentPlayerIndex !== 0) return null;
+  if ((store.mode === "ai" || store.mode === "tournament") && store.gameState.currentPlayerIndex !== 0) return null;
 
   // Find the first active, non-dismissed step
   const current = steps.find(

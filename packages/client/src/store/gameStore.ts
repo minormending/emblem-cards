@@ -14,11 +14,12 @@
  *   - socketListeners.ts: server → client event handlers
  */
 import { create } from "zustand";
-import type { Card, FieldPosition, GameEvent, GameState, GameView, MatchStats } from "@cards/shared";
+import type { Card, FieldPosition, GameEvent, GameState, GameView, MatchStats, TournamentOpponent } from "@cards/shared";
 import { MESSAGE_DURATION_MS } from "@cards/shared";
 import { createGame, drawPhase } from "@cards/battle-engine";
 import { getSocket, disconnectSocket } from "./socket";
-import { buildRandomDeck } from "@cards/card-engine";
+import { buildRandomDeck, getCardById } from "@cards/card-engine";
+import { useTournamentStore } from "./tournamentStore";
 import { useLogStore } from "./logStore";
 import { loadDecks, saveDecks } from "../lib/decks";
 import { getPlayerId, getDisplayName } from "../lib/identity";
@@ -26,8 +27,17 @@ import type { GameActions } from "./actions/types";
 import { createLocalActions } from "./actions/local";
 import { createOnlineActions } from "./actions/online";
 
-type Screen = "menu" | "deck-builder" | "matchmaking" | "battle";
-type GameMode = "local" | "online" | "ai";
+type Screen =
+  | "menu"
+  | "mode-select"
+  | "deck-builder"
+  | "matchmaking"
+  | "battle"
+  | "tournament-home"
+  | "tournament-pre-match"
+  | "tournament-reward"
+  | "tournament-loss";
+type GameMode = "local" | "online" | "ai" | "tournament";
 
 interface GameStore {
   // ── Screen / mode ──
@@ -62,6 +72,10 @@ interface GameStore {
   message: string | null;
   inspectedCard: Card | null;
 
+  // ── Tournament ──
+  /** Current tournament opponent, set when entering pre-match/battle. */
+  currentOpponent: TournamentOpponent | null;
+
   // ── Navigation / mutators ──
   setScreen: (screen: Screen) => void;
   setMode: (mode: GameMode) => void;
@@ -76,6 +90,8 @@ interface GameStore {
   // ── Game lifecycle ──
   quickStart: () => void;
   startLocalBattle: () => void;
+  setCurrentOpponent: (opponent: TournamentOpponent | null) => void;
+  startTournamentBattle: () => void;
   joinQueue: () => void;
   leaveQueue: () => void;
   createRoom: () => void;
@@ -179,6 +195,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     queuePosition: 0,
     roomCode: null,
     roomRole: null,
+    currentOpponent: null,
     ...FRESH_UI_STATE,
 
     // ── Mutators ──
@@ -204,7 +221,8 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     quickStart: () => {
       useLogStore.getState().clear();
-      const p1Deck = buildRandomDeck();
+      const { p1Deck: saved } = get();
+      const p1Deck = saved.length > 0 ? saved : buildRandomDeck();
       const p2Deck = buildRandomDeck();
       const state = createGame(p1Deck, p2Deck, "You", "AI");
       drawPhase(state);
@@ -228,6 +246,34 @@ export const useGameStore = create<GameStore>((set, get) => {
       drawPhase(state);
       logSystemStart(state);
       set({
+        gameState: state,
+        screen: "battle",
+        ...FRESH_UI_STATE,
+      });
+    },
+
+    setCurrentOpponent: (opponent) => set({ currentOpponent: opponent }),
+
+    startTournamentBattle: () => {
+      const { currentOpponent } = get();
+      const tournamentDeck = useTournamentStore.getState().tournamentDeck;
+      if (!currentOpponent || !tournamentDeck) return;
+
+      useLogStore.getState().clear();
+      // Resolve opponent's card IDs into fresh Card instances. Clone each so
+      // the static catalog entries don't get mutated during the match.
+      const opponentDeck: Card[] = currentOpponent.deck
+        .map((id) => getCardById(id))
+        .filter((c): c is Card => !!c)
+        .map((c) => ({ ...c }));
+
+      const state = createGame(tournamentDeck, opponentDeck, "You", currentOpponent.displayName);
+      drawPhase(state);
+      logSystemStart(state);
+      set({
+        mode: "tournament",
+        p1Deck: tournamentDeck,
+        p2Deck: opponentDeck,
         gameState: state,
         screen: "battle",
         ...FRESH_UI_STATE,
@@ -267,12 +313,13 @@ export const useGameStore = create<GameStore>((set, get) => {
     exitGame: () => {
       disconnectSocket();
       set({
-        screen: "menu",
+        screen: "mode-select",
         gameState: null,
         gameView: null,
         queuePosition: 0,
         roomCode: null,
         roomRole: null,
+        currentOpponent: null,
         ...FRESH_UI_STATE,
       });
     },

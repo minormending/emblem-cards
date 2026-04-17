@@ -438,6 +438,51 @@ export function pickBestAction(state: GameState): AIAction | null {
 }
 
 /**
+ * Enumerate every legal action this turn with its computed score.
+ * Caller is responsible for sorting / thresholding / picking — this is
+ * the hook difficulty presets use to apply aggression weights and top-K
+ * sampling without re-implementing the scoring pipeline.
+ */
+export function scoreAllActions(state: GameState): AIAction[] {
+  return [...scoreDeploys(state), ...scoreAttacks(state)];
+}
+
+// ── Aggression component extraction ──
+
+/**
+ * Labels whose contribution is considered "aggression" — i.e. damage to
+ * the opposing player's board/Lord. Used by AIConfig.aggressionWeight to
+ * re-weight offensive lines without changing the base evaluator.
+ *
+ * Kept as a prefix match (startsWith) because a few labels are dynamic
+ * ("deal 7 damage"). If you add a new offensive reasoning label in this
+ * file, add its prefix here too.
+ */
+const AGGRESSION_LABEL_PREFIXES = [
+  "deal ", // "deal N damage"
+  "KO target",
+  "KO enemy Lord",
+  "target is wounded",
+  "direct damage",
+  "targets enemy Lord",
+];
+
+/**
+ * Sum of an action's reasoning contributions that count as "aggression"
+ * (offense vs the opponent). Used by difficulty presets to amplify or
+ * dampen offensive lines.
+ */
+export function aggressionComponent(action: AIAction): number {
+  let total = 0;
+  for (const c of action.reasoning) {
+    if (AGGRESSION_LABEL_PREFIXES.some((p) => c.label.startsWith(p))) {
+      total += c.delta;
+    }
+  }
+  return total;
+}
+
+/**
  * Render an AI action's reasoning as a single debug string.
  * Example: "KO target (+20) + deal 8 damage (+8) = 28"
  */

@@ -23,3 +23,4 @@ export * from "./labels.js";
 export * from "./cardDisplay.js";
 export * from "./cardGradients.js";
 export * from "./cardIcons.js";
+export * from "./tournament/index.js";

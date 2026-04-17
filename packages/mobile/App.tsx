@@ -3,10 +3,17 @@ import { View, StatusBar, StyleSheet, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useGameStore } from './src/store/gameStore';
+import { useTournamentStore } from './src/store/tournamentStore';
 import { Menu } from './src/pages/Menu';
+import { ModeSelect } from './src/pages/ModeSelect';
 import { DeckBuilder } from './src/pages/DeckBuilder';
 import { Matchmaking } from './src/pages/Matchmaking';
 import { Battle } from './src/pages/Battle';
+import { TournamentHome } from './src/pages/TournamentHome';
+import { TournamentPreMatch } from './src/pages/TournamentPreMatch';
+import { TournamentReward } from './src/pages/TournamentReward';
+import { TournamentLoss } from './src/pages/TournamentLoss';
+import { STARTER_POOL } from '@cards/shared';
 import { hydrateStorage } from './src/lib/storage';
 import { IDENTITY_KEYS } from './src/lib/identity';
 import { FIRST_TIME_KEYS } from './src/lib/firstTime';
@@ -31,9 +38,22 @@ export default function App() {
       // Decks live in a separate JSON blob, not the sync cache — hydrate
       // them into the store before we render so DeckBuilder sees saved state.
       .then(() => useGameStore.getState().hydrateDecks())
+      // Tournament progress has its own AsyncStorage slot; hydrate before we
+      // render so the home screen shows the correct currentRound / unlocks.
+      .then(() => useTournamentStore.getState().hydrate())
       .catch(() => {})
       .finally(() => setHydrated(true));
   }, []);
+
+  // Tournament deck builder sees only starter-pool + reward-unlocked cards.
+  // Derive the filter in render so new unlocks propagate immediately after
+  // the reward screen commits them to the store.
+  const unlockedCards = useTournamentStore((s) => s.unlockedCards);
+  const mode = useGameStore((s) => s.mode);
+  const tournamentPool =
+    mode === 'tournament'
+      ? new Set<string>([...STARTER_POOL, ...unlockedCards])
+      : undefined;
 
   if (!hydrated) {
     return (
@@ -51,9 +71,16 @@ export default function App() {
         <ErrorBoundary onReset={() => useGameStore.getState().exitGame()}>
           <ScreenFade key={screen}>
             {screen === 'menu' && <Menu />}
-            {screen === 'deck-builder' && <DeckBuilder />}
+            {screen === 'mode-select' && <ModeSelect />}
+            {screen === 'deck-builder' && (
+              <DeckBuilder poolFilter={tournamentPool} />
+            )}
             {screen === 'matchmaking' && <Matchmaking />}
             {screen === 'battle' && <Battle />}
+            {screen === 'tournament-home' && <TournamentHome />}
+            {screen === 'tournament-pre-match' && <TournamentPreMatch />}
+            {screen === 'tournament-reward' && <TournamentReward />}
+            {screen === 'tournament-loss' && <TournamentLoss />}
           </ScreenFade>
         </ErrorBoundary>
       </SafeAreaProvider>

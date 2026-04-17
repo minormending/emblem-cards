@@ -21,12 +21,15 @@ import { sfx } from '../lib/sounds';
 import { getStats } from '../lib/stats';
 
 export function Menu() {
-  const { setMode, setScreen, quickStart, resumeSession, discardSession } =
-    useGameStore();
+  const { setScreen, resumeSession, discardSession } = useGameStore();
   const [savedMode, setSavedMode] = useState<'ai' | 'local' | null>(null);
   const [savedTurn, setSavedTurn] = useState<number | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const stats = getStats();
+  const totalGames =
+    stats.ai.wins + stats.ai.losses +
+    stats.local.wins + stats.local.losses +
+    stats.online.wins + stats.online.losses;
   const totalWins = stats.ai.wins + stats.local.wins + stats.online.wins;
   const totalLosses = stats.ai.losses + stats.local.losses + stats.online.losses;
 
@@ -68,13 +71,12 @@ export function Menu() {
     const days = Math.floor(hrs / 24);
     return `${days}d ago`;
   };
+
   const [name, setName] = useState(getDisplayName());
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(name);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [joinCode, setJoinCode] = useState('');
-  const [showJoin, setShowJoin] = useState(false);
 
   useEffect(() => {
     if (!hasSeenTutorial()) setShowTutorial(true);
@@ -83,10 +85,6 @@ export function Menu() {
   const closeTutorial = () => {
     markTutorialSeen();
     setShowTutorial(false);
-  };
-  const replayTutorial = () => {
-    resetTutorial();
-    setShowTutorial(true);
   };
 
   function commitName() {
@@ -97,40 +95,6 @@ export function Menu() {
     }
     setEditingName(false);
   }
-
-  // Light haptic on nav so taps feel responsive; sfx.select respects the
-  // Settings toggle so muting haptics disables these too.
-  const nav = (fn: () => void) => () => {
-    sfx.select();
-    fn();
-  };
-  const goLocal = nav(() => {
-    setMode('local');
-    setScreen('deck-builder');
-  });
-  const goOnline = nav(() => {
-    setMode('online');
-    useGameStore.setState({ roomRole: 'queue', roomCode: null });
-    setScreen('deck-builder');
-  });
-  const goHost = nav(() => {
-    setMode('online');
-    useGameStore.setState({ roomRole: 'host', roomCode: null });
-    setScreen('deck-builder');
-  });
-  const goJoin = () => {
-    const code = joinCode.trim().toUpperCase();
-    if (code.length !== 4) return;
-    sfx.select();
-    setMode('online');
-    useGameStore.setState({ roomRole: 'guest', roomCode: code });
-    setScreen('deck-builder');
-  };
-  const goAI = nav(() => {
-    setMode('ai');
-    setScreen('deck-builder');
-  });
-  const handleQuickStart = nav(quickStart);
 
   const playerId = getPlayerId();
 
@@ -147,6 +111,58 @@ export function Menu() {
         />
       )}
 
+      {/* Title */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Emblem Cards</Text>
+        <Text style={styles.subtitle}>
+          Tactical card battles on a 2×3 grid
+        </Text>
+      </View>
+
+      {/* Identity card — larger, centered */}
+      <View style={styles.identityCard}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {name.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+
+        {editingName ? (
+          <TextInput
+            autoFocus
+            value={draftName}
+            onChangeText={setDraftName}
+            onBlur={commitName}
+            onSubmitEditing={commitName}
+            maxLength={20}
+            style={styles.nameInput}
+            placeholderTextColor="#6b7280"
+          />
+        ) : (
+          <Pressable
+            onPress={() => {
+              setDraftName(name);
+              setEditingName(true);
+            }}
+            style={styles.nameArea}
+          >
+            <Text style={styles.nameText}>{name}</Text>
+            <Text style={styles.editHint}>tap to edit</Text>
+          </Pressable>
+        )}
+
+        {totalGames > 0 ? (
+          <View style={styles.statsRow}>
+            <Text style={styles.statWins}>{totalWins}W</Text>
+            <Text style={styles.statDash}>–</Text>
+            <Text style={styles.statLosses}>{totalLosses}L</Text>
+          </View>
+        ) : (
+          <Text style={styles.idText}>{playerId.slice(0, 8)}</Text>
+        )}
+      </View>
+
+      {/* Resume match banner */}
       {savedMode && (
         <View style={styles.resumeCard}>
           <View style={{ flex: 1 }}>
@@ -165,166 +181,47 @@ export function Menu() {
         </View>
       )}
 
-      <View style={styles.header}>
-        <Text style={styles.title}>Emblem Cards</Text>
-        <Text style={styles.subtitle}>
-          Tactical card battles on a 2×3 grid
-        </Text>
-      </View>
+      {/* Play button */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.playBtn,
+          pressed && styles.playBtnPressed,
+        ]}
+        onPress={() => {
+          sfx.select();
+          setScreen('mode-select');
+        }}
+      >
+        <Text style={styles.playBtnText}>Play</Text>
+      </Pressable>
 
-      <View style={styles.identityCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          {editingName ? (
-            <TextInput
-              autoFocus
-              value={draftName}
-              onChangeText={setDraftName}
-              onBlur={commitName}
-              onSubmitEditing={commitName}
-              maxLength={20}
-              style={styles.nameInput}
-              placeholderTextColor="#6b7280"
-            />
-          ) : (
-            <Pressable
-              onPress={() => {
-                setDraftName(name);
-                setEditingName(true);
-              }}
-            >
-              <Text style={styles.nameText}>{name}</Text>
-              <Text style={styles.idText}>
-                {totalWins + totalLosses > 0
-                  ? `${totalWins}W – ${totalLosses}L`
-                  : `${playerId.slice(0, 8)}...`}
-              </Text>
-            </Pressable>
-          )}
-        </View>
-        {!editingName && (
-          <Pressable
-            onPress={() => {
-              setDraftName(name);
-              setEditingName(true);
-            }}
-          >
-            <Text style={styles.editLink}>edit</Text>
-          </Pressable>
-        )}
-      </View>
-
-      <View style={styles.buttons}>
+      {/* Bottom links */}
+      <View style={styles.bottomRow}>
         <Pressable
           style={({ pressed }) => [
-            styles.primaryBtn,
+            styles.bottomBtn,
             pressed && styles.pressed,
           ]}
-          onPress={handleQuickStart}
+          onPress={() => {
+            resetTutorial();
+            setShowTutorial(true);
+          }}
         >
-          <Text style={styles.primaryBtnText}>Quick Start</Text>
+          <Text style={styles.bottomText}>How to Play</Text>
         </Pressable>
-        <Text style={styles.hint}>Random decks vs AI, straight to battle</Text>
-
-        <View style={styles.divider} />
-
         <Pressable
-          style={({ pressed }) => [styles.blueBtn, pressed && styles.pressed]}
-          onPress={goAI}
+          style={({ pressed }) => [
+            styles.bottomBtn,
+            pressed && styles.pressed,
+          ]}
+          onPress={() => setShowSettings(true)}
         >
-          <Text style={styles.blueBtnText}>VS Computer</Text>
+          <Text style={styles.bottomText}>Settings</Text>
         </Pressable>
-        <Text style={styles.hint}>Build your deck, fight the AI</Text>
-
-        <Pressable
-          style={({ pressed }) => [styles.grayBtn, pressed && styles.pressed]}
-          onPress={goLocal}
-        >
-          <Text style={styles.grayBtnText}>Local 2P</Text>
-        </Pressable>
-        <Text style={styles.hint}>Two players, one screen</Text>
-
-        <Pressable
-          style={({ pressed }) => [styles.purpleBtn, pressed && styles.pressed]}
-          onPress={goHost}
-        >
-          <Text style={styles.purpleBtnText}>Play with Friend</Text>
-        </Pressable>
-        <Text style={styles.hint}>Get a code to share with your friend</Text>
-
-        {showJoin ? (
-          <View style={styles.joinRow}>
-            <TextInput
-              autoFocus
-              value={joinCode}
-              onChangeText={(v) => setJoinCode(v.toUpperCase().slice(0, 4))}
-              onSubmitEditing={goJoin}
-              placeholder="CODE"
-              placeholderTextColor="rgba(255,255,255,0.3)"
-              autoCapitalize="characters"
-              autoCorrect={false}
-              maxLength={4}
-              style={styles.codeInput}
-            />
-            <Pressable
-              onPress={goJoin}
-              disabled={joinCode.trim().length !== 4}
-              style={({ pressed }) => [
-                styles.joinGoBtn,
-                joinCode.trim().length !== 4 && styles.joinGoBtnDisabled,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.joinGoText}>Go</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <Pressable
-            style={({ pressed }) => [styles.grayBtn, pressed && styles.pressed]}
-            onPress={() => setShowJoin(true)}
-          >
-            <Text style={styles.grayBtnText}>Join with Code</Text>
-          </Pressable>
-        )}
-        <Text style={styles.hint}>Enter a 4-letter code from a friend</Text>
-
-        <Pressable
-          style={({ pressed }) => [styles.subtleBtn, pressed && styles.pressed]}
-          onPress={goOnline}
-        >
-          <Text style={styles.subtleBtnText}>Random online match</Text>
-        </Pressable>
-
-        <View style={styles.divider} />
-
-        <View style={styles.secondaryRow}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.secondaryBtn,
-              pressed && styles.pressed,
-            ]}
-            onPress={replayTutorial}
-          >
-            <Text style={styles.secondaryText}>How to Play</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.secondaryBtn,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => setShowSettings(true)}
-          >
-            <Text style={styles.secondaryText}>Settings</Text>
-          </Pressable>
-        </View>
       </View>
 
       <Text style={styles.footer}>
-        No accounts. No passwords. Your identity lives only in this device.
+        No accounts. No passwords. Your identity lives only on this device.
       </Text>
     </ScrollView>
   );
@@ -337,9 +234,9 @@ const styles = StyleSheet.create({
     paddingTop: 64,
     paddingBottom: 40,
     alignItems: 'center',
-    gap: 24,
+    gap: 20,
   },
-  header: { alignItems: 'center', marginBottom: 8 },
+  header: { alignItems: 'center', marginBottom: 4 },
   title: {
     color: '#fbbf24',
     fontSize: 36,
@@ -352,136 +249,58 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   identityCard: {
-    width: 260,
-    flexDirection: 'row',
+    width: 280,
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#f59e0b',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: '#0b0d12', fontWeight: '900', fontSize: 18 },
+  avatarText: { color: '#0b0d12', fontWeight: '900', fontSize: 26 },
   nameInput: {
     color: '#fff',
     fontSize: 14,
     backgroundColor: 'rgba(0,0,0,0.3)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  nameText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  idText: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 10,
-    fontFamily: 'Menlo',
-  },
-  editLink: { color: 'rgba(255,255,255,0.4)', fontSize: 11 },
-  buttons: { width: 260, gap: 8 },
-  primaryBtn: {
-    paddingVertical: 16,
-    borderRadius: 12,
-    backgroundColor: '#dc2626',
-    alignItems: 'center',
-  },
-  primaryBtnText: { color: '#fff', fontWeight: '900', fontSize: 18 },
-  blueBtn: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-  },
-  blueBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  grayBtn: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#1f2937',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-  },
-  grayBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  purpleBtn: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#9333ea',
-    alignItems: 'center',
-  },
-  purpleBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  subtleBtn: {
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  subtleBtnText: { color: 'rgba(255,255,255,0.45)', fontSize: 12 },
-  joinRow: { flexDirection: 'row', gap: 8 },
-  codeInput: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderWidth: 1,
-    borderColor: 'rgba(168,85,247,0.4)',
-    borderRadius: 12,
+    borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 14,
-    color: '#fff',
-    fontFamily: 'Menlo',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 8,
+    paddingVertical: 6,
     textAlign: 'center',
+    width: '100%',
   },
-  joinGoBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#9333ea',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  joinGoBtnDisabled: { opacity: 0.3 },
-  joinGoText: { color: '#fff', fontWeight: '800', fontSize: 14 },
-  pressed: { opacity: 0.7 },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    marginVertical: 8,
-  },
-  hint: {
+  nameArea: { alignItems: 'center' },
+  nameText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  editHint: { color: 'rgba(255,255,255,0.3)', fontSize: 10, marginTop: 2 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  statWins: { color: '#34d399', fontWeight: '700', fontSize: 14 },
+  statDash: { color: 'rgba(255,255,255,0.2)', fontSize: 14 },
+  statLosses: { color: '#f87171', fontWeight: '700', fontSize: 14 },
+  idText: {
     color: 'rgba(255,255,255,0.25)',
     fontSize: 11,
-    textAlign: 'center',
-    marginTop: -4,
+    fontFamily: 'Menlo',
   },
-  secondaryRow: { flexDirection: 'row', gap: 8 },
-  secondaryBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 8,
-  },
-  secondaryText: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
   resumeCard: {
-    width: 260,
+    width: 280,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     backgroundColor: 'rgba(245,158,11,0.12)',
     borderColor: 'rgba(245,158,11,0.4)',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
   },
   resumeTitle: { color: '#fcd34d', fontSize: 13, fontWeight: '700' },
@@ -490,13 +309,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: '#f59e0b',
-    borderRadius: 6,
+    borderRadius: 8,
   },
   resumeBtnText: { color: '#0b0d12', fontWeight: '800', fontSize: 12 },
-  resumeDiscard: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 10,
+  resumeDiscard: { color: 'rgba(255,255,255,0.4)', fontSize: 10 },
+  playBtn: {
+    width: 280,
+    paddingVertical: 18,
+    borderRadius: 14,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
+  playBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  playBtnText: { color: '#fff', fontWeight: '900', fontSize: 22 },
+  bottomRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  bottomBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 10,
+  },
+  bottomText: { color: 'rgba(255,255,255,0.5)', fontSize: 12 },
+  pressed: { opacity: 0.7 },
   footer: {
     color: 'rgba(255,255,255,0.2)',
     fontSize: 10,

@@ -38,7 +38,7 @@ export function createLocalActions(store: Store): GameActions {
       const state = store.getState();
       const { gameState, mode } = state;
       if (!gameState) return fail(state, err(ErrorCode.NOT_IN_GAME));
-      if (mode === "ai" && gameState.currentPlayerIndex !== 0) {
+      if ((mode === "ai" || mode === "tournament") && gameState.currentPlayerIndex !== 0) {
         return fail(state, err(ErrorCode.NOT_YOUR_TURN));
       }
 
@@ -55,7 +55,7 @@ export function createLocalActions(store: Store): GameActions {
         // Center-screen flash for non-unit cards (items/weapons/supports).
         spawnPlayedFromEvents(result.value, "own");
         // Spotlight the target slot(s) so the viewer can follow card → impact.
-        const viewerId = gameState.players[mode === "ai" ? 0 : gameState.currentPlayerIndex].id;
+        const viewerId = gameState.players[mode === "ai" || mode === "tournament" ? 0 : gameState.currentPlayerIndex].id;
         spawnSpotlightsFromEvents(result.value, gameState, viewerId, "own");
       }
       store.setState({ gameState: { ...gameState }, selectedHandIndex: null });
@@ -65,7 +65,7 @@ export function createLocalActions(store: Store): GameActions {
       const state = store.getState();
       const { gameState, mode } = state;
       if (!gameState) return fail(state, err(ErrorCode.NOT_IN_GAME));
-      if (mode === "ai" && gameState.currentPlayerIndex !== 0) {
+      if ((mode === "ai" || mode === "tournament") && gameState.currentPlayerIndex !== 0) {
         return fail(state, err(ErrorCode.NOT_YOUR_TURN));
       }
 
@@ -136,7 +136,7 @@ export function createLocalActions(store: Store): GameActions {
       });
 
       // Hand off to the AI if it's now its turn
-      if (mode === "ai" && gameState.currentPlayerIndex === 1 && !gameState.winner) {
+      if ((mode === "ai" || mode === "tournament") && gameState.currentPlayerIndex === 1 && !gameState.winner) {
         scheduleAITurn(store);
       }
     },
@@ -177,7 +177,7 @@ function damageSide(
   event: Extract<GameEvent, { kind: "unit_damaged" }>,
   mode: string,
 ): "own" | "enemy" {
-  const viewerIndex = mode === "ai" ? 0 : state.currentPlayerIndex;
+  const viewerIndex = mode === "ai" || mode === "tournament" ? 0 : state.currentPlayerIndex;
   const currentIndex = state.currentPlayerIndex;
   const defenderIndex = event.isCounter
     ? currentIndex

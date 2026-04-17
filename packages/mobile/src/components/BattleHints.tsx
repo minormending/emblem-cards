@@ -77,7 +77,10 @@ export function BattleHints() {
 
   if (!enabled) return null;
   if (!store.gameState || store.gameState.winner) return null;
-  if (store.mode === 'ai' && store.gameState.currentPlayerIndex !== 0) {
+  if (
+    (store.mode === 'ai' || store.mode === 'tournament') &&
+    store.gameState.currentPlayerIndex !== 0
+  ) {
     return null;
   }
 

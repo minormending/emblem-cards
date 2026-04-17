@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -5,6 +6,7 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
+import { useTournamentStore } from '../store/tournamentStore';
 import type { FieldRow, FieldCol, SupportCard } from '@cards/shared';
 import { computeMatchStats } from '@cards/shared';
 import { getSlot, opposingPlayer } from '@cards/battle-engine';
@@ -65,11 +67,41 @@ export function Battle() {
   const slotSize = computeSlotSize(width, height, landscape);
 
   const didWin =
-    mode === 'ai' || mode === 'online' ? winner === me?.id : Boolean(winner);
+    mode === 'ai' || mode === 'online' || mode === 'tournament'
+      ? winner === me?.id
+      : Boolean(winner);
   useWinSound(winner, didWin);
-  useRecordOutcome(winner, didWin, mode, turnNumber);
+  // Tournament outcomes are recorded on the TournamentStore, not the generic
+  // stats bucket. Fall back to 'ai' for the stats hook so we don't try to
+  // persist an unknown mode.
+  useRecordOutcome(
+    winner,
+    didWin,
+    mode === 'tournament' ? 'ai' : mode,
+    turnNumber,
+  );
+
+  // Route tournament match ends to dedicated reward / loss screens and
+  // commit the result to the tournament store exactly once.
+  const tournamentRouted = useRef(false);
+  const setScreenRef = store.setScreen;
+  const currentOpponent = store.currentOpponent;
+  useEffect(() => {
+    if (mode !== 'tournament') return;
+    if (!winner || !currentOpponent) return;
+    if (tournamentRouted.current) return;
+    tournamentRouted.current = true;
+    useTournamentStore.getState().completeMatch(didWin, currentOpponent);
+    setScreenRef(didWin ? 'tournament-reward' : 'tournament-loss');
+  }, [winner, didWin, mode, currentOpponent, setScreenRef]);
 
   if (!me || !opponent) return null;
+
+  if (winner && mode === 'tournament') {
+    // Transitional render while the effect above navigates away — avoid
+    // flashing the generic WinnerScreen at tournament players.
+    return null;
+  }
 
   if (winner) {
     const winnerName = winner === me.id ? me.name : opponent.name;
@@ -86,7 +118,7 @@ export function Battle() {
         turnCount={turnNumber}
         onBackToMenu={exitGame}
         onRematch={mode === 'online' ? undefined : rematch}
-        mode={mode}
+        mode={mode === 'tournament' ? 'ai' : mode}
         stats={stats}
       />
     );
@@ -348,9 +380,12 @@ function isFieldEmpty(field: Parameters<typeof getSlot>[0]): boolean {
 function opponentSupports(
   store: ReturnType<typeof useGameStore.getState>,
 ): SupportCard[] {
-  if ((store.mode === 'local' || store.mode === 'ai') && store.gameState) {
+  if (
+    (store.mode === 'local' || store.mode === 'ai' || store.mode === 'tournament') &&
+    store.gameState
+  ) {
     const opp =
-      store.mode === 'ai'
+      store.mode === 'ai' || store.mode === 'tournament'
         ? store.gameState.players[1]
         : opposingPlayer(store.gameState);
     return opp.activeSupportCards;

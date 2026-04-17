@@ -13,6 +13,7 @@ import { units, weapons, items, supports, tactics, buildRandomDeck } from '@card
 import { CardView } from '../components/CardView';
 import { CardInspector } from '../components/CardInspector';
 import { useGameStore } from '../store/gameStore';
+import { useTournamentStore } from '../store/tournamentStore';
 
 const tabs = [
   { label: 'Units', cards: units as Card[] },
@@ -156,7 +157,17 @@ function DeckPanel({
   );
 }
 
-export function DeckBuilder() {
+export function DeckBuilder({
+  poolFilter,
+}: {
+  /**
+   * If provided, only cards whose id is in this set are shown in the catalog.
+   * Tournament mode uses this to restrict the builder to starter-pool +
+   * unlocked reward cards. Existing (non-tournament) callers pass nothing
+   * and see the full catalog, unchanged.
+   */
+  poolFilter?: ReadonlySet<string>;
+} = {}) {
   const {
     p1Deck,
     p2Deck,
@@ -171,7 +182,8 @@ export function DeckBuilder() {
     roomCode,
     setScreen,
   } = useGameStore();
-  const singleDeck = mode === 'online' || mode === 'ai';
+  const singleDeck = mode === 'online' || mode === 'ai' || mode === 'tournament';
+  const isTournament = mode === 'tournament';
   const [activeTab, setActiveTab] = useState(0);
   const [buildingFor, setBuildingFor] = useState<1 | 2>(1);
   const [query, setQuery] = useState('');
@@ -191,6 +203,15 @@ export function DeckBuilder() {
   const currentDeck = buildingFor === 1 ? p1Deck : p2Deck;
   const setCurrentDeck = buildingFor === 1 ? setP1Deck : setP2Deck;
 
+  // Apply the optional pool filter to each tab before we do anything else.
+  // Matching is by card ID — the starter-pool list is already ID-based.
+  const visibleTabs = poolFilter
+    ? tabs.map((t) => ({
+        ...t,
+        cards: t.cards.filter((c) => poolFilter.has(c.id)),
+      }))
+    : tabs;
+
   function addCard(card: Card) {
     if (currentDeck.length >= DECK_SIZE) return;
     const copies = currentDeck.filter((c) => c.id === card.id).length;
@@ -208,6 +229,14 @@ export function DeckBuilder() {
   }
 
   function handleGo() {
+    if (mode === 'tournament') {
+      // Commit the edited deck to tournament storage and return to the
+      // pre-match screen; the actual battle is launched from there so the
+      // reward preview has a natural place to live.
+      useTournamentStore.getState().setTournamentDeck(p1Deck);
+      setScreen('tournament-pre-match');
+      return;
+    }
     if (mode === 'online') {
       if (roomRole === 'host') {
         createRoom();
@@ -236,7 +265,9 @@ export function DeckBuilder() {
 
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Pressable onPress={() => setScreen('menu')}>
+          <Pressable
+            onPress={() => setScreen(isTournament ? 'tournament-pre-match' : 'menu')}
+          >
             <Text style={styles.backBtn}>Back</Text>
           </Pressable>
           <Text style={styles.title}>Deck Builder</Text>
@@ -253,6 +284,7 @@ export function DeckBuilder() {
             />
           )}
           {mode === 'ai' && <Badge label="VS CPU" color="#3b82f6" />}
+          {isTournament && <Badge label="Tournament" color="#f59e0b" />}
         </View>
         <View style={{ flexDirection: 'row', gap: 6 }}>
           <Pressable
@@ -261,12 +293,14 @@ export function DeckBuilder() {
           >
             <Text style={styles.smallBtnText}>Clear</Text>
           </Pressable>
-          <Pressable
-            onPress={() => setCurrentDeck(buildRandomDeck())}
-            style={styles.smallBtn}
-          >
-            <Text style={styles.smallBtnText}>Auto</Text>
-          </Pressable>
+          {!isTournament && (
+            <Pressable
+              onPress={() => setCurrentDeck(buildRandomDeck())}
+              style={styles.smallBtn}
+            >
+              <Text style={styles.smallBtnText}>Auto</Text>
+            </Pressable>
+          )}
           <Pressable
             disabled={!canBattle}
             onPress={handleGo}
@@ -288,7 +322,9 @@ export function DeckBuilder() {
                   : roomRole === 'guest'
                     ? 'Join Game'
                     : 'Find Match'
-                : 'Battle'}
+                : isTournament
+                  ? 'Save Deck'
+                  : 'Battle'}
             </Text>
           </Pressable>
         </View>
@@ -323,7 +359,7 @@ export function DeckBuilder() {
               </Pressable>
             </View>
           )}
-          {tabs.map((tab, i) => (
+          {visibleTabs.map((tab, i) => (
             <Pressable
               key={tab.label}
               onPress={() => setActiveTab(i)}
@@ -402,7 +438,7 @@ export function DeckBuilder() {
         {/* Card grid */}
         {(() => {
           const visible = filterAndSort(
-            tabs[activeTab].cards,
+            visibleTabs[activeTab].cards,
             query,
             costFilters,
             sortBy,
@@ -410,14 +446,14 @@ export function DeckBuilder() {
           if (visible.length === 0) {
             return (
               <Text style={styles.noMatches}>
-                No {tabs[activeTab].label.toLowerCase()} match the current filters
+                No {visibleTabs[activeTab].label.toLowerCase()} match the current filters
               </Text>
             );
           }
           return null;
         })()}
         <View style={styles.grid}>
-          {filterAndSort(tabs[activeTab].cards, query, costFilters, sortBy).map(
+          {filterAndSort(visibleTabs[activeTab].cards, query, costFilters, sortBy).map(
             (card) => {
             const copies = currentDeck.filter((c) => c.id === card.id).length;
             const maxed =

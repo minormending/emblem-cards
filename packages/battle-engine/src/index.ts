@@ -62,11 +62,20 @@ export { getUnitCombatStats } from "./combatDisplay.js";
 export type { UnitCombatStats } from "./combatDisplay.js";
 
 // ── AI opponent ──
-export { executeAITurn } from "./ai/aiPlayer.js";
-export { pickBestAction, explainAction } from "./ai/evaluate.js";
+export { executeAITurn, makeRng } from "./ai/aiPlayer.js";
+export type { Rng } from "./ai/aiPlayer.js";
+export {
+  pickBestAction,
+  explainAction,
+  scoreAllActions,
+  aggressionComponent,
+} from "./ai/evaluate.js";
 export type {
   AIAction,
   AIDeployAction,
   AIAttackAction,
   ScoreContribution,
 } from "./ai/evaluate.js";
+export { AI_PRESETS, DEFAULT_AI_CONFIG } from "./ai/presets.js";
+export type { AIConfig } from "./ai/presets.js";
+export { scoreWithLookahead } from "./ai/lookahead.js";
