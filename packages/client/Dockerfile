@@ -5,7 +5,7 @@
 # gateway Caddy in front of this container handles TLS, prefix stripping, and
 # reverse-proxying socket.io — this image only serves /srv on port 80.
 
-FROM node:22-slim AS base
+FROM node:22.11-slim AS base
 RUN corepack enable
 WORKDIR /repo
 
@@ -34,7 +34,12 @@ COPY packages/battle-engine packages/battle-engine
 COPY packages/client packages/client
 RUN pnpm exec turbo run build --filter=@cards/client
 
-FROM caddy:2-alpine AS runtime
+FROM caddy:2.8-alpine AS runtime
 COPY --from=builder /repo/packages/client/dist /srv
 COPY packages/client/Caddyfile /etc/caddy/Caddyfile
 EXPOSE 80
+# Healthcheck for observability + `docker compose up` startup gating.
+# busybox wget has `--spider` (HEAD-equivalent, exits non-zero on 4xx/5xx)
+# and `-T` for timeout; `--tries` is NOT supported by busybox, so avoid it.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget --spider -q -T 3 http://127.0.0.1/ || exit 1

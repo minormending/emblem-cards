@@ -78,15 +78,19 @@ for app in _gateway emblem dcc; do
   install -d -m 750 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$APPS_DIR/$app"
 done
 
-# Create the shared docker network as the deploy user so they own it for
-# subsequent `docker compose` invocations.
-su - "$DEPLOY_USER" -c "docker network inspect gateway >/dev/null 2>&1 || docker network create gateway"
+# Per-app docker networks. Each app attaches only its own containers; the
+# gateway Caddy attaches to every app's network. This prevents lateral
+# movement between apps (a compromise of `dcc-web` cannot reach
+# `emblem-server` because they sit on different networks).
+for net in gateway_emblem gateway_dcc; do
+  su - "$DEPLOY_USER" -c "docker network inspect $net >/dev/null 2>&1 || docker network create $net"
+done
 
 echo
 echo "── done ──"
 echo "Deploy user:  $DEPLOY_USER"
 echo "Apps dir:     $APPS_DIR"
-echo "Shared net:   gateway"
+echo "App networks: gateway_emblem, gateway_dcc"
 echo
 echo "Next: scp _gateway/ and emblem/ files from deploy/ into $APPS_DIR/, then"
 echo "  docker login ghcr.io   # with read:packages PAT"

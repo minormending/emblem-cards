@@ -25,6 +25,24 @@ pnpm --filter @cards/shared build
 
 Or `pnpm build` from the repo root to rebuild all packages in dependency order.
 
+## Workspace `exports`
+
+`package.json` has an `exports.source` condition pointing at `src/index.ts`
+so consumers that opt in via Vite's `resolve.conditions: ["source"]` (the
+client does) pick up source directly. Everyone else (Node, vitest) falls
+through to the compiled `dist/index.js` via `exports.default`. This keeps
+HMR working in the client without forcing a rebuild after every edit to a
+shared type.
+
 ## Who depends on this
 
-Everyone: `card-engine`, `battle-engine`, `server`, `client`, `mobile`. That means a breaking change here (like renaming a field on `UnitCard`) needs a coordinated update across all of them. TypeScript's compiler catches most of it; the rest falls out when tests or Metro fail.
+Everyone: `card-engine`, `battle-engine`, `server`, `client`, `mobile`.
+A breaking change here (like renaming a field on `UnitCard`) needs a
+coordinated update across all of them. TypeScript's compiler catches most
+of it; the rest falls out when tests or Metro fail.
+
+## Related reading
+
+- [`../card-engine/README.md`](../card-engine/README.md) — card data + damage formula.
+- [`../battle-engine/README.md`](../battle-engine/README.md) — game state machine.
+- [`../../docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) — how the pieces fit.

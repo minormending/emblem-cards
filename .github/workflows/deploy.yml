@@ -50,13 +50,46 @@ jobs:
           context: .
           file: packages/client/Dockerfile
           push: true
+          # Paths must match the gateway's handle_path prefix for /emblem/*.
+          # VITE_SERVER_URL is empty so the client uses window.location.origin,
+          # which is the user's hostname (TLS-terminated by the gateway).
           build-args: |
+            VITE_BASE_PATH=/emblem/
+            VITE_SOCKET_PATH=/emblem/socket.io/
             VITE_SERVER_URL=
           tags: |
             ${{ env.REGISTRY }}/${{ steps.repo.outputs.lc }}/client:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ steps.repo.outputs.lc }}/client:latest
           cache-from: type=gha,scope=client
           cache-to: type=gha,mode=max,scope=client
+
+      # Vulnerability scan after build, before deploy. Non-blocking on LOW /
+      # MEDIUM findings so a churny CVE database doesn't stall deploys; a
+      # HIGH / CRITICAL CVE fails the run and surfaces in the Security tab.
+      - name: Scan server image
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ steps.repo.outputs.lc }}/server:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-server.sarif
+      - name: Scan client image
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ steps.repo.outputs.lc }}/client:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-client.sarif
+      - name: Upload trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .
+        continue-on-error: true
 
   deploy:
     needs: build-push
@@ -68,15 +101,33 @@ jobs:
           sparse-checkout: |
             deploy
 
-      - name: Copy compose + Caddyfile to droplet
+      # The droplet layout (see deploy/setup-droplet.sh) is:
+      #   /opt/apps/_gateway/  — shared Caddy (Caddyfile, compose, landing)
+      #   /opt/apps/emblem/    — this app's compose
+      # Each app has its own .env. The gateway owns TLS + routing; each app
+      # compose only attaches containers to the shared `gateway` network.
+      - name: Copy gateway config to droplet
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DROPLET_HOST }}
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
-          source: "deploy/docker-compose.yml,deploy/Caddyfile"
-          target: "/opt/emblem-cards"
-          strip_components: 1
+          # Explicit file list — the scp-action treats `source` as literal
+          # paths, not a glob. Add new files here when they appear in the
+          # landing/ directory.
+          source: "deploy/gateway/Caddyfile,deploy/gateway/docker-compose.yml,deploy/gateway/landing/index.html"
+          target: "/opt/apps/_gateway"
+          strip_components: 2
+
+      - name: Copy emblem compose to droplet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          source: "deploy/emblem/docker-compose.yml"
+          target: "/opt/apps/emblem"
+          strip_components: 2
 
       - name: Pull & restart on droplet
         uses: appleboy/ssh-action@v1.2.0
@@ -93,15 +144,37 @@ jobs:
           envs: GH_REPO,IMAGE_TAG,SITE_ADDRESS,GHCR_USER,GHCR_TOKEN
           script: |
             set -euo pipefail
-            cd /opt/emblem-cards
+
+            # Isolate docker credentials in a per-run temp dir so a failure
+            # after `docker login` doesn't leave the GHCR PAT in the
+            # deploy user's ~/.docker/config.json.
+            DOCKER_CONFIG="$(mktemp -d)"
+            export DOCKER_CONFIG
+            trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            cat > .env <<EOF
+
+            # Gateway .env — just the hostname for TLS.
+            cat > /opt/apps/_gateway/.env <<EOF
+            SITE_ADDRESS=${SITE_ADDRESS}
+            EOF
+            chmod 600 /opt/apps/_gateway/.env
+
+            # Emblem .env — hostname + image coordinates.
+            cat > /opt/apps/emblem/.env <<EOF
             GH_REPO=${GH_REPO}
             IMAGE_TAG=${IMAGE_TAG}
             SITE_ADDRESS=${SITE_ADDRESS}
             EOF
-            chmod 600 .env
+            chmod 600 /opt/apps/emblem/.env
+
+            # Gateway first so the shared network + TLS are live before apps.
+            cd /opt/apps/_gateway
             docker compose pull
             docker compose up -d --remove-orphans
+
+            cd /opt/apps/emblem
+            docker compose pull
+            docker compose up -d --remove-orphans
+
             docker image prune -f
-            docker logout ghcr.io

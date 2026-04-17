@@ -1,152 +1,262 @@
-# Deploy
+# Deploying Emblem Cards
 
-Production runs on a single DigitalOcean droplet with one shared **Caddy
-gateway** terminating TLS for multiple apps, each at its own URL path
-(`/emblem/`, `/dcc/`, …). Apps are built as Docker images in GitHub Actions,
-pushed to GHCR, and pulled by the droplet on deploy.
+Production runs on a single DigitalOcean droplet. A shared **Caddy gateway**
+terminates TLS for every app hosted on the droplet, routing by URL path
+prefix (`/emblem/`, `/dcc/`, …). App containers are built in GitHub Actions,
+pushed to GHCR, and pulled on deploy.
 
-The droplet has no domain — TLS uses a free **sslip.io** hostname derived
-from the public IP (e.g. `159-203-108-80.sslip.io`).
+TLS comes from Let's Encrypt. The droplet does not need a registered domain —
+it uses a free **sslip.io** hostname derived from its public IP (e.g.
+`159-203-108-80.sslip.io` for IP `159.203.108.80`).
 
-## Layout
+> **Deep-dive docs for each layer:**
+> - [`deploy/README.md`](./deploy/README.md) — whole-deploy overview
+> - [`deploy/gateway/README.md`](./deploy/gateway/README.md) — shared Caddy, TLS, routing, security headers
+> - [`deploy/emblem/README.md`](./deploy/emblem/README.md) — this app's compose
+> - [`deploy/dcc/README.md`](./deploy/dcc/README.md) — sibling app slot
+> - [`docs/SECURITY.md`](./docs/SECURITY.md) — application + deployment security controls in one place
+
+---
+
+## Droplet layout
 
 ```
 /opt/apps/
-├── _gateway/              # shared Caddy (owns :80 and :443)
+├── _gateway/               # shared Caddy, owns :80 and :443
 │   ├── docker-compose.yml
 │   ├── Caddyfile
-│   ├── landing/           # root "/" listing page
-│   └── .env               # SITE_ADDRESS
-├── emblem/                # this app
-│   ├── docker-compose.yml # emblem-web + emblem-server
-│   └── .env
-└── dcc/                   # Dungeon Crawler Carl
+│   ├── landing/
+│   │   └── index.html      # "/" listing of apps
+│   └── .env                # SITE_ADDRESS
+├── emblem/                 # Emblem Cards
+│   ├── docker-compose.yml  # emblem-web + emblem-server
+│   └── .env                # SITE_ADDRESS, GH_REPO, IMAGE_TAG
+└── dcc/                    # Dungeon Crawler Carl
     └── docker-compose.yml
 ```
 
-Containers attach to an external docker network `gateway`. The Caddy gateway
-reverse-proxies by path prefix; each app's containers expose nothing to the
-host.
+## Network topology
+
+Apps do **not** share a single flat docker network. The gateway is the only
+container attached to every app's network, so a compromise of `dcc-web` can
+not reach `emblem-server`.
+
+```
+                                  ┌────────────────┐
+                      host :443 ──▶│    caddy       │
+                      host :80  ──▶│  (gateway)     │
+                                  └──┬──────────┬──┘
+                                     │          │
+                        gateway_emblem│          │gateway_dcc
+                                     ▼          ▼
+                              ┌──────────┐  ┌─────────┐
+                              │ emblem-* │  │ dcc-web │
+                              └──────────┘  └─────────┘
+```
+
+- `gateway_emblem` — Caddy + `emblem-server` + `emblem-web`
+- `gateway_dcc` — Caddy + `dcc-web`
+- No app container binds a host port; the only public sockets are Caddy's
+  `:80` and `:443`.
 
 ## URL scheme
 
-- `https://<site>/` — landing page listing the apps
-- `https://<site>/emblem/` — Emblem Cards web client
-- `https://<site>/emblem/socket.io/` — Emblem Cards server
-- `https://<site>/dcc/` — Dungeon Crawler Carl
+| Public URL                             | Container              | Notes                                |
+| -------------------------------------- | ---------------------- | ------------------------------------ |
+| `https://<site>/`                      | gateway (landing)      | Tiny static index of apps.           |
+| `https://<site>/emblem/`               | `emblem-web`           | React client, Vite build.            |
+| `https://<site>/emblem/socket.io/`     | `emblem-server`        | Socket.IO handshake + upgrade.       |
+| `https://<site>/dcc/`                  | `dcc-web`              | Sibling app.                         |
+
+Caddy strips the `/<prefix>/` before proxying, so upstream services see
+plain `/`-rooted paths and stay portable across mount points.
+
+---
 
 ## One-time droplet setup
 
-On a fresh Ubuntu 22.04/24.04 droplet, as root:
+On a fresh Ubuntu 22.04 or 24.04 droplet, as root:
 
 ```sh
 bash <(curl -fsSL https://raw.githubusercontent.com/<OWNER>/<REPO>/main/deploy/setup-droplet.sh) \
   deploy "ssh-ed25519 AAAA... your-deploy-pubkey"
 ```
 
-This installs Docker, creates a `deploy` user with your pubkey, hardens SSH
-(no root, no passwords), enables UFW (22/80/443) + fail2ban + unattended
-security upgrades, creates `/opt/apps/{_gateway,emblem,dcc}`, and creates
-the external `gateway` docker network.
+The script (see [`deploy/setup-droplet.sh`](./deploy/setup-droplet.sh)):
 
-Then, still on the droplet, populate the app directories:
+1. Installs Docker from the upstream apt repo.
+2. Creates the `deploy` non-root user and installs your public key.
+3. Hardens SSH: `PermitRootLogin no`, `PasswordAuthentication no`, key-only.
+4. Installs and enables **UFW** (allows `22/80/443`, denies everything else).
+5. Installs and enables **fail2ban** (default sshd jail).
+6. Installs **unattended-upgrades** for security patches.
+7. Creates `/opt/apps/{_gateway,emblem,dcc}` owned by `deploy:deploy`.
+8. Creates the shared docker networks `gateway_emblem` and `gateway_dcc`.
+
+Existing droplets provisioned before the network split still have the
+legacy `gateway` network. Re-running this script is idempotent and creates
+the new networks alongside it — the old network becomes orphaned but
+harmless; remove it once nothing uses it with
+`docker network rm gateway`.
+
+### Seed app directories
+
+The GitHub Actions deploy writes Compose files + `.env` into the app
+directories automatically. For a manual first boot you can place files
+yourself:
 
 ```sh
+# As the deploy user on the droplet:
 cd /opt/apps/_gateway
-# copy deploy/gateway/{Caddyfile,docker-compose.yml,landing/,.env.example} here
-cp .env.example .env && vim .env   # set SITE_ADDRESS=<ip-with-dashes>.sslip.io
+# Copy Caddyfile, docker-compose.yml, landing/ here.
+cat > .env <<EOF
+SITE_ADDRESS=159-203-108-80.sslip.io
+EOF
+chmod 600 .env
 
 cd /opt/apps/emblem
-# copy deploy/emblem/{docker-compose.yml,.env.example} here
-cp .env.example .env && vim .env   # set SITE_ADDRESS + GH_REPO
+# Copy docker-compose.yml here.
+cat > .env <<EOF
+SITE_ADDRESS=159-203-108-80.sslip.io
+GH_REPO=yourname/emblem-cards
+IMAGE_TAG=<git-sha-to-deploy>
+EOF
+chmod 600 .env
 
-docker login ghcr.io   # with a read:packages PAT
-
+# Pull the registry token and start.
+docker login ghcr.io -u <user> -p <pat-with-read:packages>
 cd /opt/apps/_gateway && docker compose up -d
-cd /opt/apps/emblem   && docker compose pull && docker compose up -d
+cd /opt/apps/emblem  && docker compose pull && docker compose up -d
+docker logout ghcr.io
 ```
 
-Caddy auto-provisions a Let's Encrypt cert on first request. First page load
-may take a few seconds while the cert is issued.
+First page load may take a few seconds while Caddy provisions the
+Let's Encrypt certificate.
 
-## GitHub secrets
+---
 
-Under repo **Settings → Secrets → Actions**:
+## GitHub Actions deploy
 
-| Secret              | Value                                                                 |
-| ------------------- | --------------------------------------------------------------------- |
-| `DROPLET_HOST`      | droplet public IP (e.g. `159.203.108.80`)                             |
-| `DROPLET_USER`      | `deploy`                                                              |
-| `DROPLET_SSH_KEY`   | private key matching the pubkey on the droplet                        |
-| `SITE_ADDRESS`      | `159-203-108-80.sslip.io`                                             |
-| `GHCR_READ_TOKEN`   | GitHub PAT (classic) with `read:packages` scope                       |
+[`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) fires on
+every push to `main` and on manual dispatch. It:
 
-Create a GitHub Environment named `production` for optional required-reviewers
-gating of the deploy job.
+1. **Builds** `server` and `client` Docker images.
+2. **Pushes** to GHCR tagged with both the commit SHA and `latest`.
+3. **Scans** both images with Trivy. Fixable HIGH or CRITICAL CVEs fail
+   the workflow and surface in the repo's Security tab via SARIF upload.
+4. **Copies** `deploy/gateway/*` and `deploy/emblem/docker-compose.yml`
+   onto the droplet via scp, respecting the `/opt/apps/_gateway/` and
+   `/opt/apps/emblem/` layout.
+5. **Writes** `.env` files on the droplet with `chmod 600`.
+6. **Pulls and restarts** containers:
+   - Gateway first (so the shared networks + TLS are live).
+   - Then emblem.
+7. Docker credentials live in a per-run `mktemp -d` with a `trap` cleanup,
+   so a failure mid-deploy cannot leave the GHCR PAT in the deploy user's
+   `~/.docker/config.json`.
+
+### Client build-args
+
+The client Docker image bakes the production paths in at build time:
+
+| Build arg            | Value                   | Why                                                  |
+| -------------------- | ----------------------- | ---------------------------------------------------- |
+| `VITE_BASE_PATH`     | `/emblem/`              | Asset URLs in `index.html` line up with the mount.   |
+| `VITE_SOCKET_PATH`   | `/emblem/socket.io/`    | `socket.io-client` hits the path Caddy forwards.     |
+| `VITE_SERVER_URL`    | *(empty)*               | Client uses `window.location.origin` (TLS via gw).   |
+
+If you change the gateway route, bump these in the workflow.
+
+### Required GitHub secrets
+
+Under **Settings → Secrets and variables → Actions**:
+
+| Secret               | Purpose                                                      |
+| -------------------- | ------------------------------------------------------------ |
+| `DROPLET_HOST`       | Public IP (e.g. `159.203.108.80`).                           |
+| `DROPLET_USER`       | `deploy`                                                     |
+| `DROPLET_SSH_KEY`    | Private key for the deploy user (OpenSSH format).            |
+| `SITE_ADDRESS`       | `159-203-108-80.sslip.io`                                    |
+| `GHCR_READ_TOKEN`    | Classic PAT, `read:packages` scope only.                     |
+
+Optionally create a **production** GitHub Environment for required-
+reviewer gating of the deploy job.
+
+---
 
 ## Adding a new app
 
-1. Pick a path prefix (e.g. `/foo/`).
-2. Build the app mounted at that prefix (Vite: `VITE_BASE_PATH=/foo/`;
-   equivalent in other frameworks).
-3. Add a `handle_path /foo/* { reverse_proxy foo-web:80 }` block to the
-   gateway Caddyfile.
-4. Create `/opt/apps/foo/docker-compose.yml` with a service named `foo-web`
-   attached to the external `gateway` network; no host ports.
-5. `docker compose up -d` in both `/opt/apps/_gateway/` (to reload Caddy) and
-   `/opt/apps/foo/`.
+1. Pick a path prefix, e.g. `/foo/`.
+2. Build the app with the prefix baked in (Vite: `VITE_BASE_PATH=/foo/`,
+   Socket.IO client: `/foo/socket.io/` if using websockets).
+3. Add a `handle_path /foo/* { ... }` block to [the gateway
+   Caddyfile](./deploy/gateway/Caddyfile). Include
+   `request_header -X-Forwarded-For` inside each handle so the gateway
+   sets X-Forwarded-For to the real client IP instead of appending to a
+   client-supplied value.
+4. Create a new docker network in [`setup-droplet.sh`](./deploy/setup-droplet.sh)
+   (`gateway_foo`) and add it to the `networks:` list in the gateway
+   compose.
+5. Create `/opt/apps/foo/docker-compose.yml`. Attach only the app's own
+   containers to `gateway_foo`; do not put them on other apps' networks.
+6. `docker compose up -d` in both `/opt/apps/_gateway/` (to pick up the
+   new network attachment) and `/opt/apps/foo/`.
 
-## What ships where
+---
 
-- `ghcr.io/<owner>/<repo>/server:<sha>` — Node 22 slim, socket.io on 3001
-  internal, no host port. Event-level rate-limited.
-- `ghcr.io/<owner>/<repo>/client:<sha>` — Caddy 2 serving the Vite build at
-  port 80 internal. Built with `VITE_BASE_PATH=/emblem/` and
-  `VITE_SOCKET_PATH=/emblem/socket.io/`.
-- `caddy:2-alpine` for the gateway; no custom image.
-
-## Security posture
-
-- **TLS:** Caddy auto-provisions Let's Encrypt; single endpoint for all apps.
-- **Headers:** HSTS (1-year, includeSubDomains), `X-Content-Type-Options: nosniff`,
-  `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`,
-  `Permissions-Policy: geolocation=(), microphone=(), camera=()`, server banner hidden.
-- **Network:** UFW denies all inbound except 22/80/443; app containers don't
-  bind host ports.
-- **Containers:** `read_only` rootfs where possible, `cap_drop: ALL`,
-  `no-new-privileges`, non-root user, CPU + memory limits per service.
-- **SSH:** key-only, root login disabled, `PasswordAuthentication no`,
-  fail2ban on sshd.
-- **Updates:** unattended-upgrades for security patches.
-- **Rate limiting:** 30 events/sec per socket on the emblem server; offenders
-  disconnected.
-- **Secrets:** `.env` files on droplet `chmod 600`; GHCR creds are short-lived
-  `docker login` per deploy, logged out after.
-- **Logs:** Docker JSON file driver, 10MB × 3 rotated.
-
-## Manual ops
+## Operations
 
 From the droplet, as `deploy`:
 
 ```sh
-# status
+# Status
 docker compose -f /opt/apps/_gateway/docker-compose.yml ps
 docker compose -f /opt/apps/emblem/docker-compose.yml ps
 
-# logs
+# Live logs (tail last 100 lines, follow)
 docker compose -f /opt/apps/emblem/docker-compose.yml logs -f --tail=100
 
-# restart one service
-docker compose -f /opt/apps/emblem/docker-compose.yml restart emblem-server
+# Restart one service after a config change
+docker compose -f /opt/apps/_gateway/docker-compose.yml restart caddy
 
-# roll back to a prior image
-vim /opt/apps/emblem/.env              # IMAGE_TAG=<older-sha>
+# Roll back to a previous image
+vim /opt/apps/emblem/.env              # set IMAGE_TAG=<older-sha>
 docker compose -f /opt/apps/emblem/docker-compose.yml pull
 docker compose -f /opt/apps/emblem/docker-compose.yml up -d
+
+# Clean up unused images after a few deploys
+docker image prune -f
 ```
 
-## Local dev
+### Zero-downtime cert renewal
 
-Unchanged: `pnpm dev` boots Vite + the server; the client defaults to
-`http://localhost:3001` and the socket path defaults to `/socket.io/`. The
-base-path + socket-path envs only apply to production builds.
+Caddy writes issued certs to the `caddy_data` volume (see
+[`deploy/gateway/docker-compose.yml`](./deploy/gateway/docker-compose.yml)).
+ACME renewal happens in-process automatically — no cron, no hooks.
+
+If you ever replace the volume, first load of each app after restart will
+pause for a few seconds while Caddy re-issues.
+
+---
+
+## Local development
+
+Unchanged by all of the above: `pnpm dev` boots Vite + the server; the
+client defaults to `http://localhost:3001` and the socket path defaults
+to `/socket.io/`. The base-path and socket-path build args only apply to
+production builds; Vite's `import.meta.env.BASE_URL` resolves to `/` in
+dev so derived asset URLs (e.g. card art at `/cards/<id>.png`) just
+work against the Vite dev server.
+
+---
+
+## Troubleshooting
+
+| Symptom                                          | Likely cause                                                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Assets 404 / images blank in network tab         | Client was built without `VITE_BASE_PATH=/emblem/`. Rebuild with the build-arg.                       |
+| Socket.io handshake fails on prod                | `VITE_SOCKET_PATH` missing or gateway handle block changed. Check `/emblem/socket.io/*` route.        |
+| `docker compose up` fails with "network not found" | Droplet wasn't re-bootstrapped after the network split. Run [`setup-droplet.sh`](./deploy/setup-droplet.sh) again (idempotent). |
+| Cert not issued                                  | UFW blocks :80, or ACME HTTP-01 challenge can't reach the droplet. Check `ufw status` and DNS.         |
+| Rate-limit kicks legit players                   | X-Forwarded-For not being set. Check Caddy logs; confirm `request_header -X-Forwarded-For` is present. |
+| Deploy workflow scans fail on HIGH CVE           | Bump the base image tag in both Dockerfiles (`node:22.11-slim`, `caddy:2.8-alpine`).                  |

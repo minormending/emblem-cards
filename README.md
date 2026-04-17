@@ -8,6 +8,15 @@ A two-player tactical card game built as a TypeScript monorepo. Players build de
 
 - **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** — Package layout, data flow diagrams, and key invariants.
 - **[docs/MAKING_CHANGES.md](./docs/MAKING_CHANGES.md)** — Step-by-step recipes for common tasks (add a card, tweak balance, add an effect, debug issues).
+- **[docs/ADDING_CARD_ART.md](./docs/ADDING_CARD_ART.md)** — Drop a PNG, validate with `pnpm cards:check`. No manifest to edit.
+- **[docs/SECURITY.md](./docs/SECURITY.md)** — Consolidated security controls across network, container, and application layers.
+
+Deploying to the droplet:
+
+- **[DEPLOY.md](./DEPLOY.md)** — Top-level deploy guide.
+- **[deploy/README.md](./deploy/README.md)** — Map of the deploy directory.
+- **[deploy/gateway/README.md](./deploy/gateway/README.md)** — Shared Caddy gateway (TLS + routing).
+- **[deploy/emblem/README.md](./deploy/emblem/README.md)** — This app's production compose.
 
 This README is the long-form reference. The docs above are quicker for day-to-day work.
 

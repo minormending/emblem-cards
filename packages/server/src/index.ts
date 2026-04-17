@@ -22,10 +22,17 @@ const defaultOrigins = [
  * Parse the `CLIENT_ORIGIN` env var and fail loudly on malformed entries. A
  * typo like `https//foo.com` (missing colon) would otherwise become a valid
  * CORS origin and silently widen exposure.
+ *
+ * Crucially we distinguish "unset" (intentional dev default) from "set to
+ * empty" (misconfigured env file). Accidentally blanking the value in
+ * production must not silently fall back to localhost origins.
  */
 function parseCorsOrigins(raw: string | undefined): string[] {
-  if (!raw) return defaultOrigins;
+  if (raw === undefined) return defaultOrigins;
   const origins = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  if (origins.length === 0) {
+    throw new Error("CLIENT_ORIGIN is set but contains no entries; unset it to use dev defaults.");
+  }
   const invalid: string[] = [];
   for (const o of origins) {
     try {
@@ -40,9 +47,6 @@ function parseCorsOrigins(raw: string | undefined): string[] {
       `CLIENT_ORIGIN contains invalid entries: ${invalid.join(", ")}. ` +
       `Each entry must be an absolute http/https URL.`,
     );
-  }
-  if (origins.length === 0) {
-    throw new Error("CLIENT_ORIGIN was set but contained no usable entries.");
   }
   return origins;
 }
@@ -84,7 +88,7 @@ const MAX_CONNECTIONS_PER_IP = 10;
 const connectionsPerIp = new Map<string, number>();
 
 io.use((socket, next) => {
-  const ip = socket.handshake.address;
+  const ip = clientIp(socket.handshake);
   if (!ip) return next();
   const current = connectionsPerIp.get(ip) ?? 0;
   if (current >= MAX_CONNECTIONS_PER_IP) {
@@ -96,6 +100,28 @@ io.use((socket, next) => {
 });
 
 // ── Helpers ──
+
+/**
+ * Resolve the real client IP of a socket handshake.
+ *
+ * In production the server sits behind the gateway Caddy, so
+ * `socket.handshake.address` is always the gateway container's internal IP.
+ * Caddy populates `X-Forwarded-For` with the real remote host and explicitly
+ * strips any incoming value from the client (see `deploy/gateway/Caddyfile`),
+ * so the first entry of that header is trustworthy here.
+ *
+ * Falls back to `handshake.address` when the header is absent (direct dev
+ * connections from localhost).
+ */
+function clientIp(handshake: { headers: Record<string, string | string[] | undefined>; address?: string }): string | null {
+  const raw = handshake.headers["x-forwarded-for"];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof value === "string" && value.length > 0) {
+    const first = value.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return handshake.address || null;
+}
 
 /** playerId → current live socketId (or null if not authenticated). */
 function socketIdFor(playerId: string): string | null {
@@ -132,7 +158,7 @@ function shortId(id: string | undefined | null): string {
 io.on("connection", (socket) => {
   // Remote IP is stable across reconnects for a given client, so the per-IP
   // bucket survives socket churn even when the per-socket bucket resets.
-  const remoteIp = socket.handshake.address || null;
+  const remoteIp = clientIp(socket.handshake);
   log.info("connect", `${socket.id} connected`);
 
   // Rate-limit every inbound event. A misbehaving client gets disconnected

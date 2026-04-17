@@ -30,8 +30,22 @@ pnpm --filter @cards/battle-engine test
 
 Tests are the most authoritative documentation for the game rules. Start with [`game.test.ts`](src/__tests__/game.test.ts) and [`combat.test.ts`](src/__tests__/combat.test.ts).
 
+## Workspace `exports`
+
+`package.json` has an `exports.source` condition → `src/index.ts` so
+Vite resolves source directly for HMR. Node and vitest fall back to the
+compiled `dist/` via `exports.default`. See
+[`../shared/README.md`](../shared/README.md#workspace-exports) for the
+same pattern applied repo-wide.
+
 ## Who depends on this
 
-- `server` — runs the authoritative game loop for online matches
-- `client` — runs it client-side for Local 2P and AI modes
-- `mobile` — same as client, running natively on Android
+- `server` — runs the authoritative game loop for online matches.
+- `client` — runs it client-side for Local 2P and AI modes.
+- `mobile` — same as client, running natively on Android.
+
+## Related reading
+
+- [`../card-engine/README.md`](../card-engine/README.md) — card data + damage formula.
+- [`../shared/README.md`](../shared/README.md) — types, protocol, events.
+- [`../../docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) — system-level overview.
