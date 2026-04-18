@@ -36,7 +36,7 @@ export function Matchmaking() {
       : `${seconds}s`;
 
   const cancel = () => {
-    if (roomRole === 'host') leaveRoom();
+    if (roomRole === 'host' || roomRole === 'guest') leaveRoom();
     else leaveQueue();
   };
 

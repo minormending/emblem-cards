@@ -77,9 +77,6 @@ function applyEffect(
         events.push({ kind: "unit_ko", position: target, unit: dyingUnit });
         maybeGameWon(state, events);
       }
-      if (before === defSlot.unit.stats.hp) {
-        // no change; shouldn't happen with positive damage, but keep invariant
-      }
       return;
     }
 

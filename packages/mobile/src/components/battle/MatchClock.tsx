@@ -38,7 +38,7 @@ export function MatchClock() {
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [winner]);
+  }, [winner, turnNumber]);
 
   const minutes = Math.floor(elapsed / 60);
   const seconds = elapsed % 60;

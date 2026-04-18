@@ -56,6 +56,14 @@ export type Effect =
   | { kind: "ranged" }
   /** Unit is flying: same as ranged, plus takes bonus damage from anti-flying effects. */
   | { kind: "flying" }
+  /** Always counter-attacks, even against ranged attackers. */
+  | { kind: "riposte" }
+  /** Ignores 50% of defender's DEF during damage calc. */
+  | { kind: "pierce" }
+  /** After dealing damage, reduce target's DEF by amount (permanent). */
+  | { kind: "shatter"; amount: number }
+  /** After dealing damage, reduce target's STR/MAG by amount (permanent). */
+  | { kind: "suppress"; amount: number }
   /** Support card: grants a stat bonus while its pair of classes is active on the field. */
   | { kind: "pair_bonus"; stat: keyof Stats; amount: number };
 

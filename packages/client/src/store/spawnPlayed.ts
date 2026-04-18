@@ -50,13 +50,17 @@ export function spawnSpotlightsFromEvents(
     if (ev.kind === "weapon_equipped" || ev.kind === "unit_deployed") {
       // Equips and deploys always land on the actor's own field.
       spawn({ side: actorSide, pos: ev.position });
+    } else if (ev.kind === "unit_damaged") {
+      const side = sideForPosition(state, viewerId, ev.position);
+      if (side) {
+        spawn({ side, pos: ev.position });
+      } else if (ev.attackerOwner) {
+        spawn({ side: ev.attackerOwner === viewerId ? "enemy" : "own", pos: ev.position });
+      }
     } else if (
-      ev.kind === "unit_damaged" ||
       ev.kind === "unit_healed" ||
       ev.kind === "unit_buffed"
     ) {
-      // Effects target a specific position — figure out whose field it's on
-      // by asking the game state which player has a unit there.
       const side = sideForPosition(state, viewerId, ev.position);
       if (side) spawn({ side, pos: ev.position });
     }

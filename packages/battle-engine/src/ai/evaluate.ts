@@ -310,9 +310,11 @@ function scoreSupportDeploy(
     ownPositions.filter((p) => getSlot(player.field, p).unit?.class === cls).length;
 
   const needTwoOfOne = classA === classB;
-  const aOk = needTwoOfOne ? countClass(classA) >= 2 : countClass(classA) >= 1;
-  const bOk = needTwoOfOne ? true : countClass(classB) >= 1;
-  if (!aOk || !bOk) return null;
+  if (needTwoOfOne) {
+    if (countClass(classA) < 2) return null;
+  } else {
+    if (countClass(classA) < 1 && countClass(classB) < 1) return null;
+  }
 
   return {
     type: "deploy",
@@ -374,8 +376,11 @@ export function scoreAttacks(state: GameState): AIAttackAction[] {
     const atkSlot = getSlot(player.field, from);
     if (!atkSlot.unit || atkSlot.hasActed) continue;
 
-    const isRanged = hasEffect(atkSlot.unit, "ranged") || atkSlot.unit.attackType === "bow";
-    const isFlying = hasEffect(atkSlot.unit, "flying");
+    const isRanged = hasEffect(atkSlot.unit, "ranged") || atkSlot.unit.attackType === "bow"
+      || (atkSlot.weapon?.attackType === "bow")
+      || (atkSlot.weapon?.effects.some((e) => e.kind === "ranged") ?? false);
+    const isFlying = hasEffect(atkSlot.unit, "flying")
+      || (atkSlot.weapon?.effects.some((e) => e.kind === "flying") ?? false);
 
     for (const to of getOccupiedPositions(opponent.field)) {
       if (!canReach(player.field, from, opponent.field, to, isRanged, isFlying)) continue;

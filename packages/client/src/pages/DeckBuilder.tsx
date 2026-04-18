@@ -24,7 +24,7 @@ function DeckStats({ deck }: { deck: Card[] }) {
   // Cost curve: 1 bucket per cost, 1–5 and a "6+" bucket
   const costBuckets = [0, 0, 0, 0, 0, 0];
   for (const c of deck) {
-    const idx = Math.min(c.cost - 1, 5);
+    const idx = Math.max(0, Math.min(c.cost - 1, 5));
     costBuckets[idx]++;
   }
   const bucketLabels = ["1", "2", "3", "4", "5", "6+"];

@@ -15,6 +15,7 @@ import type {
   Player,
   Card,
   UnitCard,
+  WeaponCard,
   SupportCard,
   FieldPosition,
   Effect,
@@ -128,6 +129,45 @@ export function drawPhase(state: GameState): Result<boolean> {
 // ── Deploy (delegated to ./deploy.ts) ──
 export { deployCard } from "./deploy.js";
 
+// ── Post-combat debuffs ──
+
+function hasRiposte(unit: UnitCard, weapon: WeaponCard | null): boolean {
+  if (unit.effects.some((e) => e.kind === "riposte")) return true;
+  return weapon ? weapon.effects.some((e) => e.kind === "riposte") : false;
+}
+
+function applyPostCombatDebuffs(
+  attackerUnit: UnitCard,
+  attackerWeapon: WeaponCard | null,
+  defenderUnit: UnitCard,
+  defenderPos: FieldPosition,
+  events: GameEvent[],
+): void {
+  const effects: Effect[] = [...attackerUnit.effects];
+  if (attackerWeapon) effects.push(...attackerWeapon.effects);
+
+  for (const effect of effects) {
+    if (effect.kind === "shatter") {
+      const reduction = Math.min(effect.amount, defenderUnit.stats.def);
+      if (reduction > 0) {
+        defenderUnit.stats.def -= reduction;
+        events.push({ kind: "unit_buffed", position: defenderPos, stat: "def", amount: -reduction });
+      }
+    } else if (effect.kind === "suppress") {
+      const magical =
+        defenderUnit.attackType === "fire" ||
+        defenderUnit.attackType === "wind" ||
+        defenderUnit.attackType === "thunder";
+      const stat = magical ? "mag" : "str";
+      const reduction = Math.min(effect.amount, defenderUnit.stats[stat]);
+      if (reduction > 0) {
+        defenderUnit.stats[stat] -= reduction;
+        events.push({ kind: "unit_buffed", position: defenderPos, stat, amount: -reduction });
+      }
+    }
+  }
+}
+
 // ── Attack ──
 
 /**
@@ -220,19 +260,25 @@ export function attackAction(
     }
   }
 
+  // ── Post-combat debuffs (shatter / suppress) ──
+  if (!defenderKOd) {
+    applyPostCombatDebuffs(atkSlot.unit, atkSlot.weapon, defSlot.unit!, defenderPos, events);
+  }
+
   // ── Counter-attack ──
   // If the defender survived and can reach the attacker under the normal
   // reach rules, they retaliate automatically. The counter does not consume
   // the defender's `hasActed` — it's a reaction, not their scheduled action.
+  // Riposte treats the defender as ranged for the counter-attack reach check,
+  // so front-row melee units can counter ranged attackers. Back-row positional
+  // restrictions still apply (can't riposte through your own front line).
   if (!defenderKOd && !state.winner) {
-    // After KO handling above, defSlot still references the same slot, and
-    // we know defSlot.unit is non-null because the defender survived.
     const counterReaches = canReach(
       opponent.field,
       defenderPos,
       player.field,
       attackerPos,
-      isRanged(defSlot.unit!, defSlot.weapon),
+      hasRiposte(defSlot.unit!, defSlot.weapon) || isRanged(defSlot.unit!, defSlot.weapon),
       isFlying(defSlot.unit!, defSlot.weapon),
     );
     if (counterReaches) {
@@ -270,6 +316,11 @@ export function attackAction(
         defenderUnit: atkSlot.unit,
         isCounter: true,
       });
+
+      // Post-combat debuffs from the counter-attacker
+      if (atkSlot.unit.stats.hp > 0) {
+        applyPostCombatDebuffs(defSlot.unit!, defSlot.weapon, atkSlot.unit, attackerPos, events);
+      }
 
       if (atkSlot.unit.stats.hp <= 0) {
         const dyingAttacker = atkSlot.unit;
@@ -389,7 +440,7 @@ export function previewCombat(
     defenderPos,
     attackerField,
     attackerPos,
-    isRanged(defSlot.unit, defSlot.weapon),
+    hasRiposte(defSlot.unit, defSlot.weapon) || isRanged(defSlot.unit, defSlot.weapon),
     isFlying(defSlot.unit, defSlot.weapon),
   );
   if (!canCounter) {
@@ -493,9 +544,10 @@ export function endTurn(state: GameState): GameEvent[] {
   resetActedFlags(next.field);
   state.turnStep = "draw";
 
-  // Deck-out loss: incoming player has no cards and no units
+  // Deck-out loss: incoming player has no cards anywhere and no units
   if (
     next.deck.length === 0 &&
+    next.hand.length === 0 &&
     getOccupiedPositions(next.field).length === 0 &&
     !state.winner
   ) {

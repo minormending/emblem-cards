@@ -19,6 +19,7 @@ import { MESSAGE_DURATION_MS } from "@cards/shared";
 import { createGame, drawPhase } from "@cards/battle-engine";
 import { getSocket, disconnectSocket } from "./socket";
 import { buildRandomDeck, getCardById } from "@cards/card-engine";
+import { cloneCard } from "@cards/shared";
 import { useTournamentStore } from "./tournamentStore";
 import { useLogStore } from "./logStore";
 import { loadDecks, saveDecks } from "../lib/decks";
@@ -141,6 +142,8 @@ function connectAndRun(
   const socket = getSocket();
 
   const sendAuth = () => {
+    socket.off("auth:ok");
+    socket.off("auth:error");
     socket.emit("auth", {
       playerId: getPlayerId(),
       displayName: getDisplayName(),
@@ -265,7 +268,7 @@ export const useGameStore = create<GameStore>((set, get) => {
       const opponentDeck: Card[] = currentOpponent.deck
         .map((id) => getCardById(id))
         .filter((c): c is Card => !!c)
-        .map((c) => ({ ...c }));
+        .map((c) => cloneCard(c));
 
       const state = createGame(tournamentDeck, opponentDeck, "You", currentOpponent.displayName);
       drawPhase(state);

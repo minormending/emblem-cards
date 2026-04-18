@@ -76,6 +76,10 @@ const EffectSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("draw_cards"), amount: z.number().int().positive() }),
   z.object({ kind: z.literal("ranged") }),
   z.object({ kind: z.literal("flying") }),
+  z.object({ kind: z.literal("riposte") }),
+  z.object({ kind: z.literal("pierce") }),
+  z.object({ kind: z.literal("shatter"), amount: z.number().int().positive() }),
+  z.object({ kind: z.literal("suppress"), amount: z.number().int().positive() }),
   z.object({
     kind: z.literal("pair_bonus"),
     stat: StatKeySchema,

@@ -110,6 +110,8 @@ function connectAndRun(
 
   const sendAuth = () => {
     useGameStore.setState({ connectionStatus: 'connected', connectionError: null });
+    socket.off('auth:ok');
+    socket.off('auth:error');
     socket.emit('auth', {
       playerId: getPlayerId(),
       displayName: getDisplayName(),
@@ -120,6 +122,8 @@ function connectAndRun(
       useGameStore.setState({ screen: 'deck-builder' });
     });
   };
+
+  useGameStore.setState({ connectionStatus: 'connecting', connectionError: null });
 
   if (!socket.connected) {
     import('./socketListeners').then(({ attachSocketListeners }) => {
@@ -136,8 +140,6 @@ function connectAndRun(
   } else {
     sendAuth();
   }
-
-  useGameStore.setState({ connectionStatus: 'connecting', connectionError: null });
 }
 
 export const useGameStore = create<GameStore>((set, get) => {

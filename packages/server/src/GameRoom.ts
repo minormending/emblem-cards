@@ -83,6 +83,7 @@ export class GameRoom {
   }
 
   deploy(playerId: string, handIndex: number, target?: FieldPosition): Result<GameEvent[]> {
+    if (this.state.winner) return err(ErrorCode.NOT_YOUR_TURN);
     if (!this.isPlayerTurn(playerId)) return err(ErrorCode.NOT_YOUR_TURN);
     const result = deployCard(this.state, handIndex, target);
     if (result.ok) this.events.push(...result.value);
@@ -90,6 +91,7 @@ export class GameRoom {
   }
 
   attack(playerId: string, from: FieldPosition, to: FieldPosition): Result<GameEvent[]> {
+    if (this.state.winner) return err(ErrorCode.NOT_YOUR_TURN);
     if (!this.isPlayerTurn(playerId)) return err(ErrorCode.NOT_YOUR_TURN);
     const result = attackAction(this.state, from, to);
     if (result.ok) this.events.push(...result.value);
@@ -97,6 +99,7 @@ export class GameRoom {
   }
 
   doEndTurn(playerId: string): Result<GameEvent[]> {
+    if (this.state.winner) return err(ErrorCode.NOT_YOUR_TURN);
     if (!this.isPlayerTurn(playerId)) return err(ErrorCode.NOT_YOUR_TURN);
     const events = endTurn(this.state);
 

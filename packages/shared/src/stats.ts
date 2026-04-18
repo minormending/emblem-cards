@@ -144,8 +144,8 @@ function computeModifier(
 
   // Priority: flawless > comeback > close > dominant > methodical.
   if (!winnerLordEverDamaged) return "flawless";
-  if (winnerLordMinHpFraction <= 0.3) return "comeback";
   if (winnerLordMinHpFraction < 0.2) return "close";
+  if (winnerLordMinHpFraction <= 0.3) return "comeback";
   if (turnCount <= 6) return "dominant";
   if (turnCount > 14) return "methodical";
   return null;

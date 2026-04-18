@@ -160,6 +160,40 @@ function buildPages(): Page[] {
       </>
     ),
   },
+  {
+    title: 'Keyword Glossary',
+    body: (
+      <>
+        <Text style={s.para}>
+          Keywords appear on cards as special abilities. Here's what they do:
+        </Text>
+        <KeywordEntry color="#f59e0b" label="Ranged">
+          Can attack from the back row and target enemy back-row units.
+        </KeywordEntry>
+        <KeywordEntry color="#06b6d4" label="Flying">
+          Same as Ranged, but takes bonus damage from anti-flying effects (e.g. bows).
+        </KeywordEntry>
+        <KeywordEntry color="#ef4444" label="Riposte">
+          Always counter-attacks when hit, even against ranged attackers.
+        </KeywordEntry>
+        <KeywordEntry color="#f97316" label="Pierce">
+          Ignores 50% of the target's DEF during damage calculation.
+        </KeywordEntry>
+        <KeywordEntry color="#8b5cf6" label="Shatter">
+          Permanently reduces the target's DEF after dealing damage.
+        </KeywordEntry>
+        <KeywordEntry color="#ec4899" label="Suppress">
+          Permanently reduces the target's ATK after dealing damage.
+        </KeywordEntry>
+        <KeywordEntry color="#10b981" label="Reposition">
+          Swap a unit between the front and back row in the same column.
+        </KeywordEntry>
+        <KeywordEntry color="#eab308" label="Attacks Twice">
+          This unit hits twice per attack action.
+        </KeywordEntry>
+      </>
+    ),
+  },
   ];
 }
 
@@ -319,6 +353,33 @@ function Step({
       <Text style={{ color: 'rgba(255,255,255,0.8)', flex: 1, fontSize: 13 }}>
         <Text style={{ color, fontWeight: '700' }}>{bold} </Text>
         {children}
+      </Text>
+    </View>
+  );
+}
+
+function KeywordEntry({
+  color,
+  label,
+  children,
+}: {
+  color: string;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderLeftWidth: 2,
+        borderLeftColor: color,
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+      }}
+    >
+      <Text style={{ fontSize: 13 }}>
+        <Text style={{ color, fontWeight: '700' }}>{label}</Text>
+        <Text style={{ color: 'rgba(255,255,255,0.7)' }}> — {children}</Text>
       </Text>
     </View>
   );

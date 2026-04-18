@@ -199,6 +199,10 @@ io.on("connection", (socket) => {
   socket.on("queue:join", (deck) => {
     const playerId = requireAuthOrError(socket);
     if (!playerId) return;
+    if (playerRooms.has(playerId)) {
+      socket.emit("game:error", "Already in a game");
+      return;
+    }
 
     const deckCheck = validateDeck(deck);
     if (!deckCheck.ok) {
@@ -225,6 +229,10 @@ io.on("connection", (socket) => {
   socket.on("room:create", (deck) => {
     const playerId = requireAuthOrError(socket);
     if (!playerId) return;
+    if (playerRooms.has(playerId)) {
+      socket.emit("room:error", "Already in a game");
+      return;
+    }
 
     const deckCheck = validateDeck(deck);
     if (!deckCheck.ok) {
@@ -244,6 +252,10 @@ io.on("connection", (socket) => {
   socket.on("room:join", (data) => {
     const playerId = requireAuthOrError(socket);
     if (!playerId) return;
+    if (playerRooms.has(playerId)) {
+      socket.emit("room:error", "Already in a game");
+      return;
+    }
 
     const code = normalizeCode(data?.code);
     if (!isValidCodeFormat(code)) {
@@ -492,6 +504,14 @@ function startMatch(p1: MatchSeat, p2: MatchSeat): void {
   if (p1Socket) io.to(p1Socket).emit("game:start", room.getView(p1.playerId));
   if (p2Socket) io.to(p2Socket).emit("game:start", room.getView(p2.playerId));
 }
+
+process.on("uncaughtException", (err) => {
+  log.error("uncaughtException", err.message, { stack: err.stack });
+});
+process.on("unhandledRejection", (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  log.error("unhandledRejection", msg);
+});
 
 httpServer.listen(PORT, () => {
   log.info("server", `listening on :${PORT}`);

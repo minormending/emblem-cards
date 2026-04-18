@@ -64,6 +64,10 @@ function hasDoubleAttack(effects: Effect[]): boolean {
   return effects.some((e) => e.kind === "double_attack");
 }
 
+function hasPierce(effects: Effect[]): boolean {
+  return effects.some((e) => e.kind === "pierce");
+}
+
 /**
  * Returns the total pair_bonus amount for a given stat that applies to the unit's class.
  * A support's pair bonus applies to both classes in its pair requirement.
@@ -140,9 +144,14 @@ export function calculateDamage(
     ? attacker.stats.mag + getWeaponBoost(attackerWeapon, "mag") + triangleBonus + attackerMagBonus
     : attacker.stats.str + getWeaponBoost(attackerWeapon, "str") + triangleBonus + attackerStrBonus;
 
-  const def = magical
+  let def = magical
     ? defender.stats.res + defenderResBonus
     : defender.stats.def + defenderDefBonus;
+
+  // Pierce: halve physical DEF (lance specialty)
+  if (hasPierce(effects) && !magical) {
+    def = Math.floor(def / 2);
+  }
 
   // Base damage (minimum 1)
   const baseDamage = Math.max(1, atk - def);

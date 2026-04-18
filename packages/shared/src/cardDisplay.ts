@@ -3,7 +3,7 @@ import type { WeaponCard, SupportCard } from "./types.js";
 export function formatWeaponBoosts(weapon: WeaponCard): string {
   return Object.entries(weapon.statBoost)
     .filter(([, v]) => v !== undefined && v !== 0)
-    .map(([k, v]) => `+${v} ${k.toUpperCase()}`)
+    .map(([k, v]) => `${v! >= 0 ? "+" : ""}${v} ${k.toUpperCase()}`)
     .join(", ");
 }
 

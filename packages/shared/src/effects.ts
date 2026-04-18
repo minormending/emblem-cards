@@ -17,12 +17,20 @@ export function effectLabel(effect: Effect): string {
     case "draw_cards":
       return `Draw ${effect.amount}`;
     case "ranged":
-      return "Ranged";
+      return "Ranged — hits from back row";
     case "flying":
-      return "Flying";
+      return "Flying — moves freely, weak to bows";
+    case "riposte":
+      return "Riposte — counters all attacks";
+    case "pierce":
+      return "Pierce — ignores 50% DEF";
+    case "shatter":
+      return `Shatter — removes ${effect.amount} DEF on hit`;
+    case "suppress":
+      return `Suppress — removes ${effect.amount} ATK on hit`;
     case "pair_bonus":
       return `Pair: +${effect.amount} ${effect.stat.toUpperCase()}`;
     case "reposition":
-      return "Reposition";
+      return "Reposition — swap front/back";
   }
 }

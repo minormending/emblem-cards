@@ -73,6 +73,18 @@
   },
   {
     "type": "support",
+    "id": "support-sworn-steel",
+    "name": "Sworn Steel",
+    "pairRequirement": { "classA": "Swordmaster", "classB": "Mercenary" },
+    "effects": [
+      { "kind": "pair_bonus", "stat": "str", "amount": 3 },
+      { "kind": "pair_bonus", "stat": "res", "amount": 3 }
+    ],
+    "cost": 2,
+    "flavor": "Two blades, one oath."
+  },
+  {
+    "type": "support",
     "id": "support-guardian",
     "name": "Guardian's Oath",
     "pairRequirement": { "classA": "General", "classB": "Cleric" },
