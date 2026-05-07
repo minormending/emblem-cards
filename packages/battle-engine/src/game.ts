@@ -77,10 +77,40 @@ function makePlayer(id: string, deck: Card[]): Player {
   };
 }
 
+/**
+ * Unbiased uniform integer in [0, max). Pulls from Web Crypto when available
+ * (Node 22 + every modern browser ship `crypto.getRandomValues`), with a
+ * Math.random fallback for older runtimes (jsdom in tests, mostly).
+ *
+ * Why crypto: the engine runs server-side authoritatively, and Math.random
+ * is a predictable PRNG — observing enough draws would let a determined
+ * player predict deck order. Cost is negligible.
+ *
+ * Why rejection-sampling: trimming the modulo bias matters more than people
+ * think — without it, low values would be slightly favored when the random
+ * range isn't a multiple of `max`.
+ */
+function randomIntBelow(max: number): number {
+  const cryptoObj: Crypto | undefined =
+    typeof globalThis !== "undefined" ? (globalThis as { crypto?: Crypto }).crypto : undefined;
+  if (cryptoObj?.getRandomValues) {
+    const buf = new Uint32Array(1);
+    const limit = Math.floor(0xffffffff / max) * max;
+    // Reject values in the biased tail; loop is O(1) amortized.
+    let v: number;
+    do {
+      cryptoObj.getRandomValues(buf);
+      v = buf[0];
+    } while (v >= limit);
+    return v % max;
+  }
+  return Math.floor(Math.random() * max);
+}
+
 /** Fisher-Yates — uniformly random. Don't replace with .sort(Math.random()-0.5). */
 function shuffle<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomIntBelow(i + 1);
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;

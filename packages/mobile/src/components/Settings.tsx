@@ -38,7 +38,7 @@ export function Settings({
 }: {
   onClose: () => void;
   /** Fires after display name or identity reset, so the menu can refresh its header. */
-  onIdentityChanged: () => void;
+  onIdentityChanged?: () => void;
 }) {
   const [name, setName] = useState(getDisplayName());
   const [serverUrl, setServerUrl] = useState(getServerUrlOverride() ?? '');
@@ -94,7 +94,7 @@ export function Settings({
     if (!clean) return;
     setDisplayName(clean);
     setName(clean);
-    onIdentityChanged();
+    onIdentityChanged?.();
   };
 
   const commitServerUrl = (value: string) => {
@@ -119,7 +119,7 @@ export function Settings({
           onPress: () => {
             clearIdentity();
             setName(getDisplayName());
-            onIdentityChanged();
+            onIdentityChanged?.();
           },
         },
       ],

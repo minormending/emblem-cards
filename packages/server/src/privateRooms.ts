@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import type { Card } from "@cards/shared";
 
 /**
@@ -114,10 +115,18 @@ export function isValidCodeFormat(code: string): boolean {
   return true;
 }
 
+/**
+ * Crypto-grade code generation. Math.random() leaks PRNG state across calls
+ * — a player who has guessed enough codes could narrow the next one to a
+ * small window. randomInt() draws from /dev/urandom and is unbiased over
+ * the [0, alphabet.length) range, so each character is independently
+ * uniform. Codes still have ~20 bits of entropy at length 4; the rate
+ * limiter (300 events/min/IP) and 10-min TTL bound the brute-force window.
+ */
 function randomCode(): string {
   let out = "";
   for (let i = 0; i < CODE_LENGTH; i++) {
-    out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+    out += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
   }
   return out;
 }

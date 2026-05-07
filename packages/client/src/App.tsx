@@ -41,5 +41,20 @@ export default function App() {
       return <TournamentReward />;
     case "tournament-loss":
       return <TournamentLoss />;
+    default: {
+      // Compile-time exhaustiveness — if a new Screen value is added without
+      // a case here, this assignment becomes a type error and surfaces in
+      // tsc instead of a blank page in production. The runtime fallback
+      // resets the user to the menu so a corrupt persisted screen value
+      // (e.g. from an older app version) doesn't trap them.
+      const _exhaustive: never = screen;
+      void _exhaustive;
+      if (typeof console !== "undefined" && console.warn) {
+        console.warn("Unknown screen value, returning to menu:", screen);
+      }
+      // Defer the reset to the next tick so we don't update state during render.
+      queueMicrotask(() => useGameStore.getState().setScreen("menu"));
+      return <Menu />;
+    }
   }
 }

@@ -44,7 +44,20 @@ export type Effect =
   | { kind: "heal_adjacent"; amount: number }
   /** Restore HP to a targeted own unit (items). Capped at maxHp. */
   | { kind: "heal_target"; amount: number }
-  /** Buff a stat on a targeted own unit. Duration is NOT currently tracked. */
+  /**
+   * Buff a stat on a targeted own unit.
+   *
+   * TODO(buff-duration): `duration` is included in card data and shown in
+   * tooltips as "+N STAT (Xt)" but is NOT enforced by the engine — buffs
+   * are permanent for the rest of the match. Two paths to resolve:
+   *   (1) Implement decay: track active buffs per unit, decrement at the
+   *       buffed player's endTurn, emit unit_debuffed events, update
+   *       effectLabel to match the actual behavior.
+   *   (2) Remove duration: drop from this type, schema.ts, items.json,
+   *       tactics.json, and effectLabel(). Cards become "permanent buffs".
+   *
+   * Until then this is a known gameplay/UX inconsistency — see audit M7.
+   */
   | { kind: "buff_target"; stat: keyof Stats; amount: number; duration: number }
   /** Deal direct damage to an enemy unit (tactics). */
   | { kind: "damage_target"; amount: number }

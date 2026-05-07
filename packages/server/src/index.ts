@@ -163,10 +163,13 @@ io.on("connection", (socket) => {
 
   // Rate-limit every inbound event. A misbehaving client gets disconnected
   // on sustained overage rather than just dropped events — cheaper to kick
-  // than to keep validating.
+  // than to keep validating. We pass an Error to next() so the middleware
+  // promise resolves (rejecting the event); without it, socket.io's internal
+  // ack/timeout machinery has to wait for the disconnect to fire.
   socket.use((_event, next) => {
     if (rateAllow(socket.id, remoteIp)) return next();
     log.warn("rate", `${socket.id} rate-limited, disconnecting`, { ip: remoteIp });
+    next(new Error("rate limited"));
     socket.disconnect(true);
   });
 
@@ -507,11 +510,70 @@ function startMatch(p1: MatchSeat, p2: MatchSeat): void {
 
 process.on("uncaughtException", (err) => {
   log.error("uncaughtException", err.message, { stack: err.stack });
+  // After an uncaught exception state is unsafe; let docker restart us.
+  process.exit(1);
 });
 process.on("unhandledRejection", (reason) => {
   const msg = reason instanceof Error ? reason.message : String(reason);
   log.error("unhandledRejection", msg);
 });
+
+// ── Graceful shutdown ──
+//
+// Docker's default 10-second SIGTERM grace window is enough to:
+//   1. Stop accepting new connections (httpServer.close).
+//   2. Notify each in-progress match that the server is restarting so the
+//      WinnerScreen renders something sensible instead of dying mid-action.
+//   3. Disconnect all sockets so the client knows to reconnect on the next
+//      pageview. Without this, browsers think the connection is still open
+//      until their TCP-level timeout fires (~minutes).
+//
+// We deliberately do NOT compute final stats or write any persistence here:
+// matches are ephemeral by design and "server restart" is a draw, not a win.
+let shuttingDown = false;
+function gracefulShutdown(signal: string): void {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  log.info("shutdown", `received ${signal}, draining`);
+
+  // Stop accepting new HTTP connections (also stops new socket handshakes).
+  httpServer.close((err) => {
+    if (err) log.warn("shutdown", `httpServer.close errored: ${err.message}`);
+  });
+
+  // Notify every active room. We send game:over with reason 'server_shutdown'
+  // and skip stats — the UI treats it as a draw / retry-later state.
+  for (const [roomId, room] of rooms) {
+    if (room.state.winner) continue;
+    for (const pid of room.playerIds) {
+      const sid = socketIdFor(pid);
+      if (!sid) continue;
+      io.to(sid).emit("game:error", "Server is restarting — match cancelled");
+    }
+    log.info("shutdown", `cancelled active match`, { roomId });
+  }
+
+  // Disconnect everyone. close: true forces an FIN so the client's onclose
+  // handler fires immediately rather than waiting for TCP timeout.
+  io.disconnectSockets(true);
+
+  // Give socket.io a beat to flush its disconnects, then close it.
+  setTimeout(() => {
+    io.close(() => {
+      log.info("shutdown", "complete");
+      process.exit(0);
+    });
+  }, 500);
+
+  // Backstop: if io.close hangs, force-exit before docker kills us with -9.
+  setTimeout(() => {
+    log.warn("shutdown", "force exit — io.close did not complete");
+    process.exit(0);
+  }, 5_000).unref();
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 httpServer.listen(PORT, () => {
   log.info("server", `listening on :${PORT}`);

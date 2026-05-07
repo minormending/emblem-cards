@@ -20,3 +20,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test
+      # Validates card JSON shape, ID uniqueness, and that every card has a
+      # PNG under packages/client/public/cards/. Cheap to run, catches the
+      # kind of regression that's invisible until users see broken images.
+      - run: pnpm cards:check
+      # Source-level audit. The deploy workflow already runs Trivy on the
+      # built docker images, but that runs after build-push and only on
+      # main. This catches new advisories at PR time.
+      #
+      # Non-blocking on purpose for now: the current tree has 4 high
+      # advisories in @xmldom/xmldom buried inside Expo CLI's plist
+      # handling (build-time only — never shipped to users). Tighten this
+      # to a hard fail once those clear. Until then the step still surfaces
+      # new advisories in the workflow log.
+      - name: Audit dependencies
+        run: pnpm audit --audit-level=high
+        continue-on-error: true

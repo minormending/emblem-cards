@@ -33,6 +33,12 @@ export function Menu() {
   const totalWins = stats.ai.wins + stats.local.wins + stats.online.wins;
   const totalLosses = stats.ai.losses + stats.local.losses + stats.online.losses;
 
+  const [name, setName] = useState(getDisplayName());
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState(name);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
   useEffect(() => {
     loadSession().then((snap) => {
       if (!snap) {
@@ -46,6 +52,15 @@ export function Menu() {
       setSavedAt(snap.savedAt);
     });
   }, []);
+
+  useEffect(() => {
+    if (!hasSeenTutorial()) setShowTutorial(true);
+  }, []);
+
+  const closeTutorial = () => {
+    markTutorialSeen();
+    setShowTutorial(false);
+  };
 
   const handleContinue = async () => {
     const ok = await resumeSession();
@@ -70,21 +85,6 @@ export function Menu() {
     if (hrs < 24) return `${hrs}h ago`;
     const days = Math.floor(hrs / 24);
     return `${days}d ago`;
-  };
-
-  const [name, setName] = useState(getDisplayName());
-  const [editingName, setEditingName] = useState(false);
-  const [draftName, setDraftName] = useState(name);
-  const [showTutorial, setShowTutorial] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-
-  useEffect(() => {
-    if (!hasSeenTutorial()) setShowTutorial(true);
-  }, []);
-
-  const closeTutorial = () => {
-    markTutorialSeen();
-    setShowTutorial(false);
   };
 
   function commitName() {
@@ -119,7 +119,7 @@ export function Menu() {
         </Text>
       </View>
 
-      {/* Identity card — larger, centered */}
+      {/* Identity card */}
       <View style={styles.identityCard}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
@@ -154,7 +154,7 @@ export function Menu() {
         {totalGames > 0 ? (
           <View style={styles.statsRow}>
             <Text style={styles.statWins}>{totalWins}W</Text>
-            <Text style={styles.statDash}>–</Text>
+            <Text style={styles.statDash}>{'\u2013'}</Text>
             <Text style={styles.statLosses}>{totalLosses}L</Text>
           </View>
         ) : (
@@ -198,25 +198,15 @@ export function Menu() {
       {/* Bottom links */}
       <View style={styles.bottomRow}>
         <Pressable
-          style={({ pressed }) => [
-            styles.bottomBtn,
-            pressed && styles.pressed,
-          ]}
           onPress={() => {
             resetTutorial();
             setShowTutorial(true);
           }}
         >
-          <Text style={styles.bottomText}>How to Play</Text>
+          <Text style={styles.linkText}>How to Play</Text>
         </Pressable>
-        <Pressable
-          style={({ pressed }) => [
-            styles.bottomBtn,
-            pressed && styles.pressed,
-          ]}
-          onPress={() => setShowSettings(true)}
-        >
-          <Text style={styles.bottomText}>Settings</Text>
+        <Pressable onPress={() => setShowSettings(true)}>
+          <Text style={styles.linkText}>Settings</Text>
         </Pressable>
       </View>
 
@@ -329,19 +319,13 @@ const styles = StyleSheet.create({
   playBtnText: { color: '#fff', fontWeight: '900', fontSize: 22 },
   bottomRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
+    alignItems: 'center',
+    gap: 24,
   },
-  bottomBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 10,
+  linkText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
   },
-  bottomText: { color: 'rgba(255,255,255,0.5)', fontSize: 12 },
-  pressed: { opacity: 0.7 },
   footer: {
     color: 'rgba(255,255,255,0.2)',
     fontSize: 10,

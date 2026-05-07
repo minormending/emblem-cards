@@ -160,7 +160,31 @@ function connectAndRun(
     import("./socketListeners").then(({ attachSocketListeners }) => {
       attachSocketListeners(socket, useGameStore);
     });
-    socket.once("connect", sendAuth);
+
+    // Surface connect failures so the matchmaking screen can react instead
+    // of spinning forever. We use socket.io's per-attempt connect_error
+    // event which fires for: timeout, websocket-blocked-by-proxy, and
+    // server-not-reachable. Cleared on the matching connect listener.
+    let connectErrorCount = 0;
+    const onConnectError = (err: Error) => {
+      connectErrorCount++;
+      // socket.io will retry up to reconnectionAttempts (set in socket.ts)
+      // before giving up; only surface to the user after we've exhausted
+      // those, so a single transient blip doesn't bounce them back.
+      if (connectErrorCount >= 2) {
+        useGameStore.getState().showMessage(
+          `Couldn't reach the server (${err.message}). Try again or use Local mode.`,
+        );
+        useGameStore.setState({ screen: "deck-builder", roomRole: null, roomCode: null });
+        socket.off("connect_error", onConnectError);
+        socket.disconnect();
+      }
+    };
+    socket.on("connect_error", onConnectError);
+    socket.once("connect", () => {
+      socket.off("connect_error", onConnectError);
+      sendAuth();
+    });
     socket.connect();
   } else {
     sendAuth();

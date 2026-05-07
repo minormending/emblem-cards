@@ -378,6 +378,36 @@ pnpm test
 
 This runs tests across all packages. Currently, `card-engine` and `battle-engine` have tests using Vitest.
 
+### Makefile
+
+The root `Makefile` provides shortcuts for common workflows. Run `make help` to see all targets:
+
+**Local development:**
+
+| Target | What it does |
+|---|---|
+| `make libs` | Build shared packages (shared, card-engine, battle-engine) |
+| `make apk` | Build a debug APK (builds libs first) |
+| `make install` | Build APK and install to a connected Android device via adb |
+| `make dev` | Start all dev servers (turbo) |
+| `make dev-client` | Start the web client dev server only |
+| `make dev-server` | Start the game server in watch mode only |
+| `make dev-mobile` | Start the Expo/Metro dev server only |
+| `make test` | Run all tests |
+| `make typecheck` | Typecheck all packages |
+| `make clean-apk` | Clean Android build artifacts |
+
+**Droplet deploy** (run from the repo clone on the droplet):
+
+| Target | What it does |
+|---|---|
+| `make deploy` | Pull, rebuild both Docker images, restart the stack |
+| `make build` | Build server + client Docker images |
+| `make up` / `make down` | Start / stop containers |
+| `make logs` | Tail container logs |
+| `make ps` | List running containers |
+| `make prune` | Remove dangling Docker resources |
+
 ### If Something Goes Wrong
 
 - **"Cannot find module @cards/shared"** -- You probably skipped the build step. Run `pnpm build` from the project root.

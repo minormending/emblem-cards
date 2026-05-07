@@ -76,6 +76,17 @@ export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 if [ ! -d "$JAVA_HOME" ]; then echo "JAVA_HOME not found at $JAVA_HOME" >&2; exit 1; fi
 if [ ! -d "$ANDROID_HOME" ]; then echo "ANDROID_HOME not found at $ANDROID_HOME" >&2; exit 1; fi
 
+# ── Verify release signing is wired up before doing the slow work ──
+# Without these, the gradle build silently signs with the debug keystore and
+# Play Store rejects the upload. The build.gradle now also asserts this, but
+# fail here too so the user gets the failure 5 minutes earlier.
+GRADLE_PROPS="$HERE/android/gradle.properties"
+if [ ! -f "$GRADLE_PROPS" ] || ! grep -q "EMBLEM_CARDS_STORE_FILE" "$GRADLE_PROPS"; then
+  echo "ERROR: release signing not configured." >&2
+  echo "       Run scripts/setup-signing.sh, or pass --clean to regenerate android/ + sign." >&2
+  exit 1
+fi
+
 # ── Build engine packages ──
 echo "→ building workspace engine packages"
 ( cd "$REPO" && pnpm --filter @cards/shared --filter @cards/card-engine --filter @cards/battle-engine build >/dev/null )

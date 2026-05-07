@@ -28,12 +28,12 @@ export function useBackHandler(): void {
       }
       if (store.screen === 'deck-builder') {
         store.setScreen(
-          store.mode === 'tournament' ? 'tournament-pre-match' : 'menu',
+          store.mode === 'tournament' ? 'tournament-pre-match' : 'mode-select',
         );
         return true;
       }
       if (store.screen === 'tournament-home') {
-        store.setScreen('menu');
+        store.setScreen('mode-select');
         return true;
       }
       if (store.screen === 'tournament-pre-match') {

@@ -25,7 +25,10 @@ services:
       - caddy_config:/config
     networks:
       - emblem
+      - calcuken
       - dcc
+      - nyc
+      - auth
     # Drop all capabilities then add back only what's needed to bind :80 /
     # :443 as an unprivileged user. Makes a container escape land in a near-
     # useless shell.
@@ -60,8 +63,17 @@ networks:
   emblem:
     name: gateway_emblem
     external: true
+  calcuken:
+    name: gateway_calcuken
+    external: true
   dcc:
     name: gateway_dcc
+    external: true
+  nyc:
+    name: gateway_nyc
+    external: true
+  auth:
+    name: gateway_auth
     external: true
 
 volumes:

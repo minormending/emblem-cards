@@ -29,7 +29,23 @@ If you edit engine source, re-run the `pnpm --filter ... build` command — Metr
 
 ## Install a real APK (no Metro)
 
-You need **JDK 17** and the **Android SDK** for this path. Setup once:
+The fastest way is the root Makefile — from the repo root:
+
+```bash
+make install     # builds libs + APK, installs to connected device via adb
+```
+
+Or just build the APK without installing:
+
+```bash
+make apk         # output: packages/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Clean Android build artifacts with `make clean-apk`.
+
+### Manual steps (if you prefer)
+
+You need **JDK 17** and the **Android SDK**. Setup once:
 
 ```bash
 brew install openjdk@17
