@@ -1,13 +1,11 @@
 import type { Card } from "@cards/shared";
 import { cloneCard, DECK_SIZE, MAX_CARD_COPIES } from "@cards/shared";
-import { allCards, units } from "@cards/card-engine";
+import { allCards, units } from "./cards/index.js";
 
 /**
- * Generate a valid random deck: 1 Lord + 14 random non-Lord cards,
- * each capped at MAX_CARD_COPIES.
- *
- * Every card is cloned so that no two deck slots share a reference
- * (prevents HP/state from leaking between copies of the same template).
+ * Generate a valid random deck: 1 Lord + (DECK_SIZE-1) random non-Lord cards,
+ * each capped at MAX_CARD_COPIES. Every card is cloned so deck slots don't
+ * share references (prevents HP/state from leaking between copies).
  */
 export function buildRandomDeck(): Card[] {
   const lords = units.filter((u) => u.isLord);
@@ -23,8 +21,6 @@ export function buildRandomDeck(): Card[] {
   const deck: Card[] = [];
   deck.push(cloneCard(lords[Math.floor(Math.random() * lords.length)]));
 
-  // Guard against impossible decks (not enough unique non-Lord cards).
-  // With 34 non-Lord cards and MAX_CARD_COPIES=2, we need ~7 unique.
   let safetyGuard = DECK_SIZE * 50;
   while (deck.length < DECK_SIZE) {
     if (--safetyGuard <= 0) {

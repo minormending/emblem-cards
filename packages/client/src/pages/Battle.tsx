@@ -1,5 +1,8 @@
-import type { FieldRow, FieldCol, SupportCard } from "@cards/shared";
+import { useEffect, useRef } from "react";
+import type { FieldRow, FieldCol, SupportCard, TournamentOpponent } from "@cards/shared";
+import { computeMatchStats } from "@cards/shared";
 import { getSlot, opposingPlayer } from "@cards/battle-engine";
+import { useTournamentStore } from "../store/tournamentStore";
 import {
   useGameStore,
   getCurrentPlayer,
@@ -17,6 +20,7 @@ import { TurnBanner } from "../components/battle/TurnBanner";
 import { ActionHint } from "../components/battle/ActionHint";
 import { Toast } from "../components/battle/Toast";
 import { FieldGrid } from "../components/battle/FieldGrid";
+import { CardPlayedOverlay } from "../components/battle/CardPlayedOverlay";
 import { WinnerScreen } from "../components/battle/WinnerScreen";
 import { TurnTransitionOverlay } from "../components/battle/TurnTransitionOverlay";
 import { useBattleSlotHandlers } from "../hooks/useBattleSlotHandlers";
@@ -57,18 +61,34 @@ export function Battle() {
   const { handleOwnSlotClick, handleEnemySlotClick } = useBattleSlotHandlers(me, isMyTurn);
   const lastHitPos = store.lastHitPos;
 
-  const didWin = mode === "ai" || mode === "online" ? winner === me?.id : Boolean(winner);
+  const didWin = mode === "ai" || mode === "online" || mode === "tournament" ? winner === me?.id : Boolean(winner);
   useWinSound(winner, didWin);
 
+  // Tournament: on match end, record progress and route to reward/loss screen.
+  useTournamentMatchEnd(mode, winner, me?.id ?? null, store.currentOpponent);
+
   if (!me || !opponent) return null;
+  // While the effect above is pending the screen change, render nothing to
+  // avoid flashing the generic WinnerScreen.
+  if (winner && mode === "tournament") return null;
 
   if (winner) {
+    const winnerName = winner === me.id ? me.name : opponent.name;
+    // Online mode: server sent stats via game:over. Local/AI: compute now
+    // from the in-memory event log + final game state.
+    const stats =
+      mode === "online"
+        ? store.matchStats
+        : store.gameState
+          ? computeMatchStats(store.gameState, store.matchEvents, winner)
+          : null;
     return (
       <WinnerScreen
         didWin={didWin}
-        winnerName={winner}
+        winnerName={winnerName}
         turnCount={turnNumber}
         onBackToMenu={exitGame}
+        stats={stats}
       />
     );
   }
@@ -79,6 +99,7 @@ export function Battle() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-950 to-gray-900">
       <CardInspector />
+      <CardPlayedOverlay />
       <BattleHints />
 
       <TopBar
@@ -287,11 +308,44 @@ function isFieldEmpty(field: Parameters<typeof getSlot>[0]): boolean {
  * preview damage omits opponent pair-bonuses in that case.
  */
 function opponentSupports(store: ReturnType<typeof useGameStore.getState>): SupportCard[] {
-  if ((store.mode === "local" || store.mode === "ai") && store.gameState) {
-    const opp = store.mode === "ai"
+  if ((store.mode === "local" || store.mode === "ai" || store.mode === "tournament") && store.gameState) {
+    const opp = store.mode === "ai" || store.mode === "tournament"
       ? store.gameState.players[1]
       : opposingPlayer(store.gameState);
     return opp.activeSupportCards;
   }
   return [];
+}
+
+/**
+ * Runs exactly once per tournament match conclusion:
+ *   - Records the win/loss in the tournament store (awarding the reward card
+ *     on a win, no-op on loss).
+ *   - Swaps the screen to tournament-reward / tournament-loss so the player
+ *     never sees the generic WinnerScreen in tournament mode.
+ *
+ * A ref guards against re-entry if Battle re-renders between the state
+ * mutation and the screen switch.
+ */
+function useTournamentMatchEnd(
+  mode: string,
+  winner: string | null,
+  myId: string | null,
+  opponent: TournamentOpponent | null,
+): void {
+  const handledRef = useRef(false);
+  useEffect(() => {
+    if (mode !== "tournament") {
+      handledRef.current = false;
+      return;
+    }
+    if (!winner || !opponent || !myId) return;
+    if (handledRef.current) return;
+    handledRef.current = true;
+    const playerWon = winner === myId;
+    useTournamentStore.getState().completeMatch(playerWon, opponent);
+    useGameStore.setState({
+      screen: playerWon ? "tournament-reward" : "tournament-loss",
+    });
+  }, [mode, winner, myId, opponent]);
 }

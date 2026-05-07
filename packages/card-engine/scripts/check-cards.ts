@@ -9,7 +9,7 @@
  * Exits 0 on success, 1 on any validation error. Prints friendly
  * per-card messages so non-engineers can identify and fix issues.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import {
@@ -76,6 +76,28 @@ if (!hasError) {
   } catch (e) {
     console.error(`\n${(e as Error).message}`);
     hasError = true;
+  }
+}
+
+// Art files live at packages/client/public/cards/<id>.png. We don't require
+// every card to have art, but every PNG under that directory must map to a
+// known card id so renames/typos surface at build time.
+const artDir = resolve(here, "..", "..", "client", "public", "cards");
+if (!hasError && existsSync(artDir)) {
+  const cardIds = new Set(
+    (allParsed as Array<{ id: string }>).map((c) => c.id),
+  );
+  const pngs = readdirSync(artDir).filter((f) => f.endsWith(".png"));
+  const orphans = pngs.filter((f) => !cardIds.has(f.replace(/\.png$/, "")));
+  if (orphans.length > 0) {
+    console.error(
+      `✗ art: ${orphans.length} orphan file(s) in public/cards/ not matching any card id:`,
+    );
+    for (const o of orphans) console.error(`   ${o}`);
+    hasError = true;
+  } else {
+    const withArt = pngs.length;
+    console.log(`✓ art: ${withArt} PNG(s) in public/cards/ match card ids`);
   }
 }
 

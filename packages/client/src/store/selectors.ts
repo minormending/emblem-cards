@@ -25,9 +25,9 @@ export interface OpponentInfo {
 /** The current human player's Player record, regardless of mode. */
 export function getCurrentPlayer(store: StoreState): Player | null {
   const { mode, gameState, gameView } = store;
-  if ((mode === "local" || mode === "ai") && gameState) {
+  if ((mode === "local" || mode === "ai" || mode === "tournament") && gameState) {
     // In AI mode, the human is always player 0.
-    return mode === "ai" ? gameState.players[0] : currentPlayer(gameState);
+    return mode === "ai" || mode === "tournament" ? gameState.players[0] : currentPlayer(gameState);
   }
   if (mode === "online" && gameView) {
     return gameView.you;
@@ -38,8 +38,8 @@ export function getCurrentPlayer(store: StoreState): Player | null {
 /** Opponent info, normalized across modes. */
 export function getOpponentInfo(store: StoreState): OpponentInfo | null {
   const { mode, gameState, gameView } = store;
-  if ((mode === "local" || mode === "ai") && gameState) {
-    const opp = mode === "ai" ? gameState.players[1] : opposingPlayer(gameState);
+  if ((mode === "local" || mode === "ai" || mode === "tournament") && gameState) {
+    const opp = mode === "ai" || mode === "tournament" ? gameState.players[1] : opposingPlayer(gameState);
     return {
       name: opp.name,
       field: opp.field,
@@ -69,19 +69,19 @@ export function getOpponentInfo(store: StoreState): OpponentInfo | null {
 export function getIsMyTurn(store: StoreState): boolean {
   // Hot-seat: always "your turn" regardless of whose turn the engine thinks it is.
   if (store.mode === "local") return true;
-  if (store.mode === "ai" && store.gameState) return store.gameState.currentPlayerIndex === 0;
+  if ((store.mode === "ai" || store.mode === "tournament") && store.gameState) return store.gameState.currentPlayerIndex === 0;
   if (store.mode === "online" && store.gameView) return store.gameView.isYourTurn;
   return false;
 }
 
 export function getTurnNumber(store: StoreState): number {
-  if ((store.mode === "local" || store.mode === "ai") && store.gameState) return store.gameState.turnNumber;
+  if ((store.mode === "local" || store.mode === "ai" || store.mode === "tournament") && store.gameState) return store.gameState.turnNumber;
   if (store.mode === "online" && store.gameView) return store.gameView.turnNumber;
   return 0;
 }
 
 export function getWinner(store: StoreState): string | null {
-  if ((store.mode === "local" || store.mode === "ai") && store.gameState) return store.gameState.winner;
+  if ((store.mode === "local" || store.mode === "ai" || store.mode === "tournament") && store.gameState) return store.gameState.winner;
   if (store.mode === "online" && store.gameView) return store.gameView.winner;
   return null;
 }

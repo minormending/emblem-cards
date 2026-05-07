@@ -77,9 +77,6 @@ function applyEffect(
         events.push({ kind: "unit_ko", position: target, unit: dyingUnit });
         maybeGameWon(state, events);
       }
-      if (before === defSlot.unit.stats.hp) {
-        // no change; shouldn't happen with positive damage, but keep invariant
-      }
       return;
     }
 
@@ -110,8 +107,21 @@ function applyEffect(
           events.push({ kind: "unit_healed", position: target, amount: delta, hpAfter: after });
         }
       } else {
-        slot.unit.stats[effect.stat] += effect.amount;
-        events.push({ kind: "unit_buffed", position: target, stat: effect.stat, amount: effect.amount });
+        // STR and MAG are interchangeable attack-stat labels: a "+3 STR"
+        // buff on a Mage (who attacks magically) applies to MAG instead,
+        // and vice versa. Mirrors getWeaponBoost() in damage.ts. DEF/RES/SPD
+        // aren't translated — they're separate stats regardless of role.
+        const unit = slot.unit;
+        let appliedStat = effect.stat;
+        if (effect.stat === "str" || effect.stat === "mag") {
+          const magical =
+            unit.attackType === "fire" ||
+            unit.attackType === "wind" ||
+            unit.attackType === "thunder";
+          appliedStat = magical ? "mag" : "str";
+        }
+        unit.stats[appliedStat] += effect.amount;
+        events.push({ kind: "unit_buffed", position: target, stat: appliedStat, amount: effect.amount });
       }
       return;
     }

@@ -167,6 +167,50 @@ const pages: Page[] = [
       </>
     ),
   },
+  {
+    title: "Keyword Glossary",
+    body: (
+      <>
+        <p className="text-white/80">
+          Keywords appear on cards as special abilities. Here&apos;s what they do:
+        </p>
+        <div className="space-y-1.5 text-sm">
+          <div className="bg-white/5 border-l-2 border-amber-500 pl-2 py-1">
+            <strong className="text-amber-300">Ranged</strong>
+            <span className="text-white/70"> — Can attack from the back row and target enemy back-row units.</span>
+          </div>
+          <div className="bg-white/5 border-l-2 border-cyan-500 pl-2 py-1">
+            <strong className="text-cyan-300">Flying</strong>
+            <span className="text-white/70"> — Same as Ranged, but takes bonus damage from anti-flying effects (e.g. bows).</span>
+          </div>
+          <div className="bg-white/5 border-l-2 border-red-500 pl-2 py-1">
+            <strong className="text-red-300">Riposte</strong>
+            <span className="text-white/70"> — Always counter-attacks when hit, even against ranged attackers.</span>
+          </div>
+          <div className="bg-white/5 border-l-2 border-orange-500 pl-2 py-1">
+            <strong className="text-orange-300">Pierce</strong>
+            <span className="text-white/70"> — Ignores 50% of the target&apos;s DEF during damage calculation.</span>
+          </div>
+          <div className="bg-white/5 border-l-2 border-violet-500 pl-2 py-1">
+            <strong className="text-violet-300">Shatter</strong>
+            <span className="text-white/70"> — Permanently reduces the target&apos;s DEF after dealing damage.</span>
+          </div>
+          <div className="bg-white/5 border-l-2 border-pink-500 pl-2 py-1">
+            <strong className="text-pink-300">Suppress</strong>
+            <span className="text-white/70"> — Permanently reduces the target&apos;s ATK after dealing damage.</span>
+          </div>
+          <div className="bg-white/5 border-l-2 border-emerald-500 pl-2 py-1">
+            <strong className="text-emerald-300">Reposition</strong>
+            <span className="text-white/70"> — Swap a unit between the front and back row in the same column.</span>
+          </div>
+          <div className="bg-white/5 border-l-2 border-yellow-500 pl-2 py-1">
+            <strong className="text-yellow-300">Attacks Twice</strong>
+            <span className="text-white/70"> — This unit hits twice per attack action.</span>
+          </div>
+        </div>
+      </>
+    ),
+  },
 ];
 
 export function HowToPlay({ onClose }: HowToPlayProps) {

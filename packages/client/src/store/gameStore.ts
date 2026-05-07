@@ -14,19 +14,31 @@
  *   - socketListeners.ts: server → client event handlers
  */
 import { create } from "zustand";
-import type { Card, FieldPosition, GameState, GameView } from "@cards/shared";
+import type { Card, FieldPosition, GameEvent, GameState, GameView, MatchStats, TournamentOpponent } from "@cards/shared";
 import { MESSAGE_DURATION_MS } from "@cards/shared";
 import { createGame, drawPhase } from "@cards/battle-engine";
 import { getSocket, disconnectSocket } from "./socket";
-import { buildRandomDeck } from "../lib/deckBuilder";
+import { buildRandomDeck, getCardById } from "@cards/card-engine";
+import { cloneCard } from "@cards/shared";
+import { useTournamentStore } from "./tournamentStore";
 import { useLogStore } from "./logStore";
+import { loadDecks, saveDecks } from "../lib/decks";
 import { getPlayerId, getDisplayName } from "../lib/identity";
 import type { GameActions } from "./actions/types";
 import { createLocalActions } from "./actions/local";
 import { createOnlineActions } from "./actions/online";
 
-type Screen = "menu" | "deck-builder" | "matchmaking" | "battle";
-type GameMode = "local" | "online" | "ai";
+type Screen =
+  | "menu"
+  | "mode-select"
+  | "deck-builder"
+  | "matchmaking"
+  | "battle"
+  | "tournament-home"
+  | "tournament-pre-match"
+  | "tournament-reward"
+  | "tournament-loss";
+type GameMode = "local" | "online" | "ai" | "tournament";
 
 interface GameStore {
   // ── Screen / mode ──
@@ -41,6 +53,17 @@ interface GameStore {
   gameState: GameState | null;  // local / ai
   gameView: GameView | null;    // online
   queuePosition: number;
+  /** Private room code, set when hosting or joining via code. */
+  roomCode: string | null;
+  /** 'queue' = public matchmaking, 'host' = waiting for friend, 'guest' = joining. */
+  roomRole: "queue" | "host" | "guest" | null;
+
+  // ── End-of-match stats ──
+  /** Raw event log for the current match. Used by local/AI mode to compute
+   *  stats locally. Empty in online mode — server sends stats pre-computed. */
+  matchEvents: GameEvent[];
+  /** Server-provided stats for online mode. Local/AI compute at render time. */
+  matchStats: MatchStats | null;
 
   // ── UI state ──
   selectedHandIndex: number | null;
@@ -49,6 +72,10 @@ interface GameStore {
   lastHitPos: FieldPosition | null;
   message: string | null;
   inspectedCard: Card | null;
+
+  // ── Tournament ──
+  /** Current tournament opponent, set when entering pre-match/battle. */
+  currentOpponent: TournamentOpponent | null;
 
   // ── Navigation / mutators ──
   setScreen: (screen: Screen) => void;
@@ -64,8 +91,13 @@ interface GameStore {
   // ── Game lifecycle ──
   quickStart: () => void;
   startLocalBattle: () => void;
+  setCurrentOpponent: (opponent: TournamentOpponent | null) => void;
+  startTournamentBattle: () => void;
   joinQueue: () => void;
   leaveQueue: () => void;
+  createRoom: () => void;
+  joinRoom: (code: string) => void;
+  leaveRoom: () => void;
   exitGame: () => void;
 
   // ── Unified actions ──
@@ -88,14 +120,76 @@ function logSystemStart(gameState: GameState): void {
   });
 }
 
-// The per-game UI slots we want to clear whenever a new game begins.
+// The per-game UI + stats slots we want to clear whenever a new game begins.
 const FRESH_UI_STATE = {
   selectedHandIndex: null,
   selectedAttackerPos: null,
   lastHitPos: null,
   message: null,
   inspectedCard: null,
+  matchEvents: [] as GameEvent[],
+  matchStats: null as MatchStats | null,
 } as const;
+
+/**
+ * Connect the socket (if needed), authenticate, then run `afterAuth`. All
+ * online actions (queue join, room create/join) share this setup so the
+ * auth/listener wiring lives in one place.
+ */
+function connectAndRun(
+  afterAuth: (socket: ReturnType<typeof getSocket>) => void,
+): void {
+  const socket = getSocket();
+
+  const sendAuth = () => {
+    socket.off("auth:ok");
+    socket.off("auth:error");
+    socket.emit("auth", {
+      playerId: getPlayerId(),
+      displayName: getDisplayName(),
+    });
+    socket.once("auth:ok", () => afterAuth(socket));
+    socket.once("auth:error", (msg) => {
+      useGameStore.getState().showMessage(`Auth failed: ${msg}`);
+      useGameStore.setState({ screen: "deck-builder" });
+    });
+  };
+
+  if (!socket.connected) {
+    // Lazy import avoids a circular dep with this store.
+    import("./socketListeners").then(({ attachSocketListeners }) => {
+      attachSocketListeners(socket, useGameStore);
+    });
+
+    // Surface connect failures so the matchmaking screen can react instead
+    // of spinning forever. We use socket.io's per-attempt connect_error
+    // event which fires for: timeout, websocket-blocked-by-proxy, and
+    // server-not-reachable. Cleared on the matching connect listener.
+    let connectErrorCount = 0;
+    const onConnectError = (err: Error) => {
+      connectErrorCount++;
+      // socket.io will retry up to reconnectionAttempts (set in socket.ts)
+      // before giving up; only surface to the user after we've exhausted
+      // those, so a single transient blip doesn't bounce them back.
+      if (connectErrorCount >= 2) {
+        useGameStore.getState().showMessage(
+          `Couldn't reach the server (${err.message}). Try again or use Local mode.`,
+        );
+        useGameStore.setState({ screen: "deck-builder", roomRole: null, roomCode: null });
+        socket.off("connect_error", onConnectError);
+        socket.disconnect();
+      }
+    };
+    socket.on("connect_error", onConnectError);
+    socket.once("connect", () => {
+      socket.off("connect_error", onConnectError);
+      sendAuth();
+    });
+    socket.connect();
+  } else {
+    sendAuth();
+  }
+}
 
 export const useGameStore = create<GameStore>((set, get) => {
   // Cached action implementations — rebuilt lazily when mode changes.
@@ -113,15 +207,22 @@ export const useGameStore = create<GameStore>((set, get) => {
     return cachedActions!;
   };
 
+  // Hydrate decks synchronously from localStorage so the deck-builder opens
+  // with whatever the player had last time.
+  const saved = loadDecks();
+
   return {
     // ── Initial state ──
     screen: "menu",
     mode: "local",
-    p1Deck: [],
-    p2Deck: [],
+    p1Deck: saved?.p1Deck ?? [],
+    p2Deck: saved?.p2Deck ?? [],
     gameState: null,
     gameView: null,
     queuePosition: 0,
+    roomCode: null,
+    roomRole: null,
+    currentOpponent: null,
     ...FRESH_UI_STATE,
 
     // ── Mutators ──
@@ -147,7 +248,8 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     quickStart: () => {
       useLogStore.getState().clear();
-      const p1Deck = buildRandomDeck();
+      const { p1Deck: saved } = get();
+      const p1Deck = saved.length > 0 ? saved : buildRandomDeck();
       const p2Deck = buildRandomDeck();
       const state = createGame(p1Deck, p2Deck, "You", "AI");
       drawPhase(state);
@@ -177,49 +279,74 @@ export const useGameStore = create<GameStore>((set, get) => {
       });
     },
 
+    setCurrentOpponent: (opponent) => set({ currentOpponent: opponent }),
+
+    startTournamentBattle: () => {
+      const { currentOpponent } = get();
+      const tournamentDeck = useTournamentStore.getState().tournamentDeck;
+      if (!currentOpponent || !tournamentDeck) return;
+
+      useLogStore.getState().clear();
+      // Resolve opponent's card IDs into fresh Card instances. Clone each so
+      // the static catalog entries don't get mutated during the match.
+      const opponentDeck: Card[] = currentOpponent.deck
+        .map((id) => getCardById(id))
+        .filter((c): c is Card => !!c)
+        .map((c) => cloneCard(c));
+
+      const state = createGame(tournamentDeck, opponentDeck, "You", currentOpponent.displayName);
+      drawPhase(state);
+      logSystemStart(state);
+      set({
+        mode: "tournament",
+        p1Deck: tournamentDeck,
+        p2Deck: opponentDeck,
+        gameState: state,
+        screen: "battle",
+        ...FRESH_UI_STATE,
+      });
+    },
+
     joinQueue: () => {
       const { p1Deck } = get();
-      const socket = getSocket();
-
-      const sendAuthAndJoin = () => {
-        socket.emit("auth", {
-          playerId: getPlayerId(),
-          displayName: getDisplayName(),
-        });
-        socket.once("auth:ok", () => socket.emit("queue:join", p1Deck));
-        socket.once("auth:error", (msg) => {
-          get().showMessage(`Auth failed: ${msg}`);
-          set({ screen: "deck-builder" });
-        });
-      };
-
-      if (!socket.connected) {
-        // Lazy import to avoid a circular dep with this store
-        import("./socketListeners").then(({ attachSocketListeners }) => {
-          attachSocketListeners(socket, useGameStore);
-        });
-        socket.once("connect", sendAuthAndJoin);
-        socket.connect();
-      } else {
-        sendAuthAndJoin();
-      }
-
-      set({ screen: "matchmaking", queuePosition: 0 });
+      connectAndRun((socket) => socket.emit("queue:join", p1Deck));
+      set({ screen: "matchmaking", queuePosition: 0, roomRole: "queue", roomCode: null });
     },
 
     leaveQueue: () => {
       const socket = getSocket();
       if (socket.connected) socket.emit("queue:leave");
-      set({ screen: "deck-builder", queuePosition: 0 });
+      set({ screen: "deck-builder", queuePosition: 0, roomRole: null });
+    },
+
+    createRoom: () => {
+      const { p1Deck } = get();
+      connectAndRun((socket) => socket.emit("room:create", p1Deck));
+      set({ screen: "matchmaking", roomRole: "host", roomCode: null });
+    },
+
+    joinRoom: (code: string) => {
+      const { p1Deck } = get();
+      connectAndRun((socket) => socket.emit("room:join", { code, deck: p1Deck }));
+      set({ screen: "matchmaking", roomRole: "guest", roomCode: code.toUpperCase() });
+    },
+
+    leaveRoom: () => {
+      const socket = getSocket();
+      if (socket.connected) socket.emit("room:leave");
+      set({ screen: "deck-builder", roomRole: null, roomCode: null });
     },
 
     exitGame: () => {
       disconnectSocket();
       set({
-        screen: "menu",
+        screen: "mode-select",
         gameState: null,
         gameView: null,
         queuePosition: 0,
+        roomCode: null,
+        roomRole: null,
+        currentOpponent: null,
         ...FRESH_UI_STATE,
       });
     },
@@ -227,6 +354,18 @@ export const useGameStore = create<GameStore>((set, get) => {
     // ── Actions ──
     getActions,
   };
+});
+
+// ── Deck auto-save ───────────────────────────────────────────────────────
+// Persist p1Deck/p2Deck on every change. Reference-equal dedupe so unrelated
+// state updates don't thrash localStorage.
+let lastSavedP1: unknown = null;
+let lastSavedP2: unknown = null;
+useGameStore.subscribe((state) => {
+  if (state.p1Deck === lastSavedP1 && state.p2Deck === lastSavedP2) return;
+  lastSavedP1 = state.p1Deck;
+  lastSavedP2 = state.p2Deck;
+  saveDecks(state.p1Deck, state.p2Deck);
 });
 
 // Re-export selectors as named imports from gameStore for convenience.

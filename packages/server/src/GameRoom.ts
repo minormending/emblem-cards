@@ -23,6 +23,8 @@ export class GameRoom {
   id: string;
   state: GameState;
   playerIds: [string, string];
+  /** Running event log for post-match stats. */
+  events: GameEvent[] = [];
 
   constructor(
     id: string,
@@ -81,16 +83,23 @@ export class GameRoom {
   }
 
   deploy(playerId: string, handIndex: number, target?: FieldPosition): Result<GameEvent[]> {
+    if (this.state.winner) return err(ErrorCode.NOT_YOUR_TURN);
     if (!this.isPlayerTurn(playerId)) return err(ErrorCode.NOT_YOUR_TURN);
-    return deployCard(this.state, handIndex, target);
+    const result = deployCard(this.state, handIndex, target);
+    if (result.ok) this.events.push(...result.value);
+    return result;
   }
 
   attack(playerId: string, from: FieldPosition, to: FieldPosition): Result<GameEvent[]> {
+    if (this.state.winner) return err(ErrorCode.NOT_YOUR_TURN);
     if (!this.isPlayerTurn(playerId)) return err(ErrorCode.NOT_YOUR_TURN);
-    return attackAction(this.state, from, to);
+    const result = attackAction(this.state, from, to);
+    if (result.ok) this.events.push(...result.value);
+    return result;
   }
 
   doEndTurn(playerId: string): Result<GameEvent[]> {
+    if (this.state.winner) return err(ErrorCode.NOT_YOUR_TURN);
     if (!this.isPlayerTurn(playerId)) return err(ErrorCode.NOT_YOUR_TURN);
     const events = endTurn(this.state);
 
@@ -106,6 +115,7 @@ export class GameRoom {
       }
     }
 
+    this.events.push(...events);
     return ok(events);
   }
 }

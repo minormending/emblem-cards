@@ -2,6 +2,7 @@ import type { FieldPosition, FieldRow, FieldCol, Field, SupportCard } from "@car
 import { getSlot, canAttack, previewCombat } from "@cards/battle-engine";
 import type { CombatPreview } from "@cards/battle-engine";
 import { FieldSlotView } from "../FieldSlotView";
+import { useFxStore } from "../../store/fxStore";
 
 const ROWS: FieldRow[] = ["front", "back"];
 const COLS: FieldCol[] = [0, 1, 2];
@@ -52,6 +53,8 @@ export function FieldGrid({
   onClick,
 }: FieldGridProps) {
   const rows = flipped ? [...ROWS].reverse() : ROWS;
+  const spotlights = useFxStore((s) => s.spotlights);
+  const mySide = isOwn ? "own" : "enemy";
 
   return (
     <div className="space-y-2">
@@ -60,6 +63,9 @@ export function FieldGrid({
           {COLS.map((col) => {
             const pos: FieldPosition = { row, col };
             const slot = getSlot(field, pos);
+            const isSpotlit = spotlights.some(
+              (sp) => sp.side === mySide && sp.pos.row === row && sp.pos.col === col,
+            );
 
             const isSelected =
               isOwn &&
@@ -99,6 +105,7 @@ export function FieldGrid({
                 isAttackTarget={isAttackTarget}
                 lastHit={wasHit}
                 attackPreview={attackPreview}
+                spotlight={isSpotlit}
                 onClick={() => onClick(pos)}
               />
             );

@@ -1,11 +1,10 @@
 import { useState } from "react";
 import type { Card } from "@cards/shared";
 import { DECK_SIZE, MAX_CARD_COPIES, cloneCard } from "@cards/shared";
-import { units, weapons, items, supports, tactics } from "@cards/card-engine";
+import { units, weapons, items, supports, tactics, buildRandomDeck } from "@cards/card-engine";
 import { CardView } from "../components/CardView";
 import { CardInspector } from "../components/CardInspector";
 import { useGameStore } from "../store/gameStore";
-import { buildRandomDeck } from "../lib/deckBuilder";
 const tabs = [
   { label: "Units", cards: units as Card[] },
   { label: "Weapons", cards: weapons as Card[] },
@@ -25,7 +24,7 @@ function DeckStats({ deck }: { deck: Card[] }) {
   // Cost curve: 1 bucket per cost, 1–5 and a "6+" bucket
   const costBuckets = [0, 0, 0, 0, 0, 0];
   for (const c of deck) {
-    const idx = Math.min(c.cost - 1, 5);
+    const idx = Math.max(0, Math.min(c.cost - 1, 5));
     costBuckets[idx]++;
   }
   const bucketLabels = ["1", "2", "3", "4", "5", "6+"];
@@ -154,9 +153,23 @@ function DeckPanel({
   );
 }
 
-export function DeckBuilder() {
-  const { p1Deck, p2Deck, setP1Deck, setP2Deck, startLocalBattle, joinQueue, mode, setScreen } = useGameStore();
-  const singleDeck = mode === "online" || mode === "ai";
+export interface DeckBuilderProps {
+  /**
+   * When set, only cards whose `id` is in this set appear in the collection
+   * picker. Enables tournament mode's "starter pool + unlocked rewards"
+   * restriction without changing behavior for any existing caller.
+   */
+  poolFilter?: ReadonlySet<string>;
+  /** Override for the "go" button click in tournament mode. */
+  onSave?: (deck: Card[]) => void;
+  /** Override the primary button label (e.g. "Save" in tournament). */
+  saveLabel?: string;
+}
+
+export function DeckBuilder(props: DeckBuilderProps = {}) {
+  const { poolFilter, onSave, saveLabel } = props;
+  const { p1Deck, p2Deck, setP1Deck, setP2Deck, startLocalBattle, joinQueue, createRoom, joinRoom, mode, roomRole, roomCode, setScreen } = useGameStore();
+  const singleDeck = mode === "online" || mode === "ai" || mode === "tournament";
   const [activeTab, setActiveTab] = useState(0);
   const [buildingFor, setBuildingFor] = useState<1 | 2>(1);
 
@@ -194,8 +207,20 @@ export function DeckBuilder() {
   function handleGo() {
     if (goingToBattle) return;
     setGoingToBattle(true);
+    if (onSave) {
+      // Tournament flow: persist deck via callback, don't start a battle here.
+      onSave(currentDeck);
+      setTimeout(() => setGoingToBattle(false), 500);
+      return;
+    }
     if (mode === "online") {
-      joinQueue();
+      if (roomRole === "host") {
+        createRoom();
+      } else if (roomRole === "guest" && roomCode) {
+        joinRoom(roomCode);
+      } else {
+        joinQueue();
+      }
     } else if (mode === "ai") {
       // Give AI a random deck and start in one synchronous sequence
       setP2Deck(buildRandomDeck());
@@ -218,7 +243,7 @@ export function DeckBuilder() {
       <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setScreen("menu")}
+            onClick={() => setScreen(mode === "tournament" ? "tournament-pre-match" : "menu")}
             className="text-xs text-gray-500 hover:text-white transition-colors"
           >
             Back
@@ -226,12 +251,21 @@ export function DeckBuilder() {
           <h1 className="text-xl font-bold tracking-tight">Deck Builder</h1>
           {mode === "online" && (
             <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-full px-2 py-0.5">
-              Online
+              {roomRole === "host"
+                ? "Play with Friend"
+                : roomRole === "guest"
+                  ? `Join ${roomCode ?? ""}`
+                  : "Online"}
             </span>
           )}
           {mode === "ai" && (
             <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full px-2 py-0.5">
-              VS Computer
+              VS AI
+            </span>
+          )}
+          {mode === "tournament" && (
+            <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full px-2 py-0.5">
+              Tournament
             </span>
           )}
         </div>
@@ -259,7 +293,15 @@ export function DeckBuilder() {
                 : "bg-gray-800 text-gray-600 cursor-not-allowed"
             }`}
           >
-            {mode === "online" ? "Find Match" : "Battle!"}
+            {saveLabel
+              ? saveLabel
+              : mode === "online"
+                ? roomRole === "host"
+                  ? "Create Room"
+                  : roomRole === "guest"
+                    ? "Join Game"
+                    : "Find Match"
+                : "Battle!"}
           </button>
         </div>
       </div>
@@ -316,7 +358,7 @@ export function DeckBuilder() {
 
           {/* Cards grid */}
           <div className="flex flex-wrap gap-3">
-            {tabs[activeTab].cards.map((card) => {
+            {tabs[activeTab].cards.filter((c) => !poolFilter || poolFilter.has(c.id)).map((card) => {
               const copies = currentDeck.filter((c) => c.id === card.id).length;
               const maxed = copies >= MAX_CARD_COPIES || (card.type === "unit" && card.isLord && copies >= 1);
               const deckFull = currentDeck.length >= DECK_SIZE;

@@ -1,5 +1,7 @@
 import type { GameSocket } from "./socket";
 import type { useGameStore } from "./gameStore";
+import { spawnPlayedFromEvents, spawnSpotlightsFromEventsOnline } from "./spawnPlayed";
+import { getPlayerId } from "../lib/identity";
 
 type StoreApi = typeof useGameStore;
 
@@ -23,6 +25,8 @@ export function attachSocketListeners(socket: GameSocket, store: StoreApi): void
   socket.off("game:over");
   socket.off("auth:ok");
   socket.off("auth:error");
+  socket.off("room:created");
+  socket.off("room:error");
 
   socket.on("queue:joined", ({ position }) => {
     store.setState({ queuePosition: position });
@@ -44,9 +48,25 @@ export function attachSocketListeners(socket: GameSocket, store: StoreApi): void
     if (result.type === "attack" && result.damage != null) {
       store.getState().showMessage(`${result.damage} damage!`);
     }
+    if (result.events && result.events.length > 0) {
+      const myId = getPlayerId();
+      const side = result.actorId === myId ? "own" : "enemy";
+      spawnPlayedFromEvents(result.events, side);
+      spawnSpotlightsFromEventsOnline(result.events, myId, result.actorId ?? null);
+    }
   });
 
-  socket.on("game:over", () => {
-    // Final state comes via game:update before this; nothing extra to do here.
+  socket.on("game:over", ({ stats }) => {
+    // Final state comes via game:update before this; attach stats for UI.
+    store.setState({ matchStats: stats });
+  });
+
+  socket.on("room:created", ({ code }) => {
+    store.setState({ roomCode: code });
+  });
+
+  socket.on("room:error", (message) => {
+    store.getState().showMessage(message);
+    store.setState({ screen: "deck-builder", roomRole: null, roomCode: null });
   });
 }

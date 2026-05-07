@@ -1,0 +1,81 @@
+# Shared gateway: one Caddy, owns :80 and :443, routes to every app on the
+# droplet by URL path. Add a new app by attaching its public-facing containers
+# to the corresponding per-app network (declared under `networks:` below) and
+# adding a handle_path block in the Caddyfile.
+#
+# Each app has its own docker network — Caddy is the only container attached
+# to more than one, so sibling apps can't reach each other's internals. Add a
+# new app by (1) declaring it under `networks:` as external, and (2) adding
+# it to the caddy service's `networks:` list.
+services:
+  caddy:
+    # Pinned minor tag so a breaking Caddy release doesn't land on a
+    # `docker compose pull`. Bump deliberately. Alpine base is kept small.
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./landing:/srv/landing:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - emblem
+      - calcuken
+      - dcc
+      - nyc
+      - auth
+    # Drop all capabilities then add back only what's needed to bind :80 /
+    # :443 as an unprivileged user. Makes a container escape land in a near-
+    # useless shell.
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    # No healthcheck. Caddy only has site blocks for $SITE_ADDRESS, so an
+    # intra-container request to http://127.0.0.1/ gets a 404 (Host header
+    # mismatch) and would flap. Caddy is mature + Docker's restart policy
+    # handles crashes; this isn't worth a custom health endpoint.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+networks:
+  # Per-app networks. Caddy attaches to each; only each app's own containers
+  # also attach to its network. This prevents lateral movement — a compromise
+  # of `dcc-web` can't reach `emblem-server`.
+  emblem:
+    name: gateway_emblem
+    external: true
+  calcuken:
+    name: gateway_calcuken
+    external: true
+  dcc:
+    name: gateway_dcc
+    external: true
+  nyc:
+    name: gateway_nyc
+    external: true
+  auth:
+    name: gateway_auth
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:

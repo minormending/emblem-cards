@@ -1,7 +1,10 @@
-import type { FieldSlot, FieldPosition } from "@cards/shared";
+import clsx from "clsx";
+import type { FieldSlot, FieldPosition, UnitCard, WeaponCard } from "@cards/shared";
+import { getHpPercent, getHpTone, type HpTone } from "@cards/shared";
 import type { CombatPreview } from "@cards/battle-engine";
+import { getUnitCombatStats } from "@cards/battle-engine";
 import { attackTypeBorders } from "../lib/colors";
-import { CardArtMini } from "./CardArt";
+import { CardArt } from "./CardArt";
 import { CombatFx } from "./battle/CombatFx";
 import { useGameStore } from "../store/gameStore";
 
@@ -16,6 +19,8 @@ interface FieldSlotViewProps {
   lastHit?: boolean;
   /** Damage preview when this slot is a legal attack target. */
   attackPreview?: CombatPreview | null;
+  /** Pulse ring + glow — shown while the related card-played overlay is up. */
+  spotlight?: boolean;
 }
 
 export function FieldSlotView({
@@ -28,134 +33,148 @@ export function FieldSlotView({
   onClick,
   lastHit,
   attackPreview,
+  spotlight,
 }: FieldSlotViewProps) {
   const { unit, weapon, hasActed } = slot;
-  const border = unit ? attackTypeBorders[unit.attackType] : "border-white/10";
   const setInspectedCard = useGameStore((s) => s.setInspectedCard);
 
-  // Right-click an occupied slot to inspect the unit (works for own AND enemy).
   const handleContextMenu = (e: React.MouseEvent) => {
     if (!unit) return;
     e.preventDefault();
     setInspectedCard(unit);
   };
 
-  // HP bar — uses real maxHp from card data
-  const hpPercent = unit
-    ? Math.max(0, Math.min(100, (unit.stats.hp / unit.maxHp) * 100))
-    : 0;
-  const hpColor =
-    hpPercent > 60 ? "bg-emerald-500" : hpPercent > 30 ? "bg-amber-500" : "bg-red-500";
-
   return (
     <div
       onClick={onClick}
       onContextMenu={handleContextMenu}
       title={unit ? "Right-click to inspect" : undefined}
-      className={`
-        w-36 h-40 rounded-xl border-2 ${border}
-        flex flex-col items-center justify-center relative overflow-hidden
-        cursor-pointer transition-all duration-200 ease-out
-        ${unit
-          ? "bg-gradient-to-b from-gray-800 to-gray-900"
-          : "bg-gray-900/40 border-dashed"
-        }
-        ${isSelected
-          ? "ring-2 ring-mythic shadow-lg shadow-mythic/30 scale-105"
-          : ""
-        }
-        ${isDeployTarget && !unit
-          ? "border-emerald-400 bg-emerald-950/40 border-solid animate-pulse"
-          : ""
-        }
-        ${isAttackTarget && unit
-          ? "border-red-400 bg-red-950/30 border-solid"
-          : ""
-        }
-        ${lastHit ? "animate-[shake_0.3s_ease-out]" : ""}
-        ${!isOwn && unit ? "opacity-90" : ""}
-        ${isOwn && unit && hasActed ? "opacity-50 saturate-50" : ""}
-      `}
+      className={clsx(
+        "w-36 h-40 rounded-xl border-2 flex flex-col items-center relative overflow-hidden",
+        "cursor-pointer transition-all duration-200 ease-out",
+        unit ? attackTypeBorders[unit.attackType] : "border-white/10",
+        unit
+          ? "justify-start pt-1.5 pb-1.5 bg-gradient-to-b from-gray-800 to-gray-900"
+          : "justify-center bg-gray-900/40 border-dashed",
+        isSelected && "ring-2 ring-mythic shadow-lg shadow-mythic/30 scale-105",
+        isDeployTarget && !unit && "border-emerald-400 bg-emerald-950/40 border-solid animate-pulse",
+        isAttackTarget && unit && "border-red-400 bg-red-950/30 border-solid",
+        lastHit && "animate-[shake_0.3s_ease-out]",
+        spotlight && "ring-4 ring-amber-300 shadow-[0_0_24px_6px_rgba(251,191,36,0.55)] animate-[pulseGlow_1.8s_ease-in-out_1]",
+        !isOwn && unit && "opacity-90",
+        isOwn && unit && hasActed && "opacity-50 saturate-50",
+      )}
     >
       {unit ? (
-        <>
-          {/* HP bar across top */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-black/40">
-            <div
-              className={`h-full ${hpColor} transition-all duration-300`}
-              style={{ width: `${hpPercent}%` }}
-            />
-          </div>
-
-          <div className="w-full px-1 mt-1">
-            <CardArtMini card={unit} />
-          </div>
-          <div className="text-sm font-bold truncate w-full text-center px-2">
-            {unit.name}
-          </div>
-          {unit.isLord && (
-            <span className="text-[9px] font-black tracking-wider bg-mythic/20 text-mythic border border-mythic/40 rounded px-1 py-px">
-              LORD
-            </span>
-          )}
-
-          {/* Stats — weapon.statBoost values are added to the base stat so
-               the display matches what the engine uses in damage calc. */}
-          {(() => {
-            const boost = weapon?.statBoost ?? {};
-            const b = (k: keyof typeof boost) => boost[k] ?? 0;
-            const isMage = unit.stats.str === 0 && unit.stats.mag > 0;
-            const atkStat = isMage ? "mag" : "str";
-            const atkLabel = isMage ? "MAG" : "STR";
-            const atkBase = isMage ? unit.stats.mag : unit.stats.str;
-            const atkBoost = b(atkStat);
-            return (
-              <>
-                <div className="flex gap-2 text-[11px] mt-1.5">
-                  <span className="text-red-400 font-bold">{unit.stats.hp} HP</span>
-                  <span className={atkBoost ? "text-amber-300 font-bold" : "text-orange-300"}>
-                    {atkBase + atkBoost} {atkLabel}
-                    {atkBoost ? <span className="text-[9px] opacity-80"> (+{atkBoost})</span> : null}
-                  </span>
-                </div>
-                <div className="flex gap-2 text-[10px] opacity-70">
-                  <StatChip color="text-blue-300" label="DEF" base={unit.stats.def} boost={b("def")} />
-                  <StatChip color="text-purple-300" label="RES" base={unit.stats.res} boost={b("res")} />
-                  <StatChip color="text-green-300" label="SPD" base={unit.stats.spd} boost={b("spd")} />
-                </div>
-              </>
-            );
-          })()}
-
-          {/* Weapon badge */}
-          {weapon && (
-            <div className="mt-1 text-[10px] bg-emerald-900/60 border border-emerald-500/30 rounded-full px-2 py-0.5 text-emerald-300">
-              {weapon.name}
-            </div>
-          )}
-
-          {/* Acted indicator */}
-          {isOwn && hasActed && (
-            <div className="absolute top-1 left-1 text-[9px] bg-gray-700/80 text-gray-400 rounded px-1">
-              Done
-            </div>
-          )}
-        </>
+        <OccupiedSlot unit={unit} weapon={weapon} isOwn={isOwn} hasActed={hasActed} />
       ) : (
-        <>
-          <div className="w-8 h-8 rounded-lg border border-dashed border-white/10 flex items-center justify-center mb-1">
-            <span className="text-white/15 text-lg">+</span>
-          </div>
-          <div className="text-[10px] opacity-20 capitalize">
-            {pos.row} {pos.col + 1}
-          </div>
-        </>
+        <EmptySlotPlaceholder pos={pos} />
       )}
 
       {attackPreview && <AttackPreviewBadge preview={attackPreview} />}
 
       <CombatFx side={isOwn ? "own" : "enemy"} pos={pos} />
     </div>
+  );
+}
+
+function OccupiedSlot({
+  unit,
+  weapon,
+  isOwn,
+  hasActed,
+}: {
+  unit: UnitCard;
+  weapon: WeaponCard | null;
+  isOwn: boolean;
+  hasActed: boolean;
+}) {
+  return (
+    <>
+      <HpBar current={unit.stats.hp} max={unit.maxHp} />
+
+      <div className="flex-1 w-full px-1 min-h-0">
+        <CardArt card={unit} fill fit="cover" align="top" />
+      </div>
+
+      <div className="text-sm font-bold truncate w-full text-center px-2">
+        {unit.name}
+      </div>
+      {unit.isLord && (
+        <span className="text-[9px] font-black tracking-wider bg-mythic/20 text-mythic border border-mythic/40 rounded px-1 py-px">
+          LORD
+        </span>
+      )}
+
+      <UnitStatsBlock unit={unit} weapon={weapon} />
+
+      {weapon && (
+        <div className="mt-1 text-[10px] bg-emerald-900/60 border border-emerald-500/30 rounded-full px-2 py-0.5 text-emerald-300">
+          {weapon.name}
+        </div>
+      )}
+
+      {isOwn && hasActed && (
+        <div className="absolute top-1 left-1 text-[9px] bg-gray-700/80 text-gray-400 rounded px-1">
+          Done
+        </div>
+      )}
+    </>
+  );
+}
+
+function EmptySlotPlaceholder({ pos }: { pos: FieldPosition }) {
+  return (
+    <>
+      <div className="w-8 h-8 rounded-lg border border-dashed border-white/10 flex items-center justify-center mb-1">
+        <span className="text-white/15 text-lg">+</span>
+      </div>
+      <div className="text-[10px] opacity-20 capitalize">
+        {pos.row} {pos.col + 1}
+      </div>
+    </>
+  );
+}
+
+const HP_BAR_CLASS: Record<HpTone, string> = {
+  good: "bg-emerald-500",
+  warn: "bg-amber-500",
+  crit: "bg-red-500",
+};
+
+function HpBar({ current, max }: { current: number; max: number }) {
+  const pct = getHpPercent(current, max);
+  return (
+    <div className="absolute top-0 left-0 right-0 h-1 bg-black/40">
+      <div
+        className={clsx("h-full transition-all duration-300", HP_BAR_CLASS[getHpTone(current, max)])}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Primary stats row + secondary chips. Weapon stat boosts are folded into the
+ * displayed values so what the player sees matches what combat calc uses.
+ */
+function UnitStatsBlock({ unit, weapon }: { unit: UnitCard; weapon: WeaponCard | null }) {
+  const s = getUnitCombatStats(unit, weapon);
+  return (
+    <>
+      <div className="flex gap-2 text-[11px] mt-1.5">
+        <span className="text-red-400 font-bold">{s.hp} HP</span>
+        <span className={s.atkBoost ? "text-amber-300 font-bold" : "text-orange-300"}>
+          {s.atkBase + s.atkBoost} {s.atkLabel}
+          {s.atkBoost ? <span className="text-[9px] opacity-80"> (+{s.atkBoost})</span> : null}
+        </span>
+      </div>
+      <div className="flex gap-2 text-[10px] opacity-70">
+        <StatChip color="text-blue-300" label="DEF" base={s.def} boost={s.defBoost} />
+        <StatChip color="text-purple-300" label="RES" base={s.res} boost={s.resBoost} />
+        <StatChip color="text-green-300" label="SPD" base={s.spd} boost={s.spdBoost} />
+      </div>
+    </>
   );
 }
 
@@ -172,31 +191,26 @@ export function FieldSlotView({
 function AttackPreviewBadge({ preview }: { preview: CombatPreview }) {
   const { out, in: incoming, attackerKOs, counterKOs, counters } = preview;
 
-  // Outcome → gradient class + dominant color
   let outTone: string;
   let inTone: string;
   let ringTone: string;
   let animate = "";
 
   if (attackerKOs) {
-    // Clean kill — golden victory, subtle breathing animation
     outTone = "bg-gradient-to-b from-amber-300 to-amber-500 text-gray-950";
     inTone = "bg-gradient-to-b from-emerald-400 to-emerald-600 text-white";
     ringTone = "ring-amber-300/70";
     animate = "animate-pulse";
   } else if (counterKOs) {
-    // Lethal counter — strong red warning pulse
     outTone = "bg-gradient-to-b from-amber-400 to-amber-600 text-gray-950";
     inTone = "bg-gradient-to-b from-red-500 to-red-700 text-white";
     ringTone = "ring-red-400/80";
     animate = "animate-pulse";
   } else if (counters) {
-    // Both survive — trade
     outTone = "bg-gradient-to-b from-emerald-400 to-emerald-600 text-white";
     inTone = "bg-gradient-to-b from-red-400 to-red-600 text-white";
     ringTone = "ring-white/30";
   } else {
-    // Free hit — no counter
     outTone = "bg-gradient-to-b from-emerald-400 to-emerald-600 text-white";
     inTone = "";
     ringTone = "ring-emerald-300/60";
@@ -212,22 +226,23 @@ function AttackPreviewBadge({ preview }: { preview: CombatPreview }) {
 
   return (
     <div
-      className={`absolute top-1 left-1/2 -translate-x-1/2 z-10 flex rounded-lg overflow-hidden shadow-lg ring-2 ${ringTone} ${animate} backdrop-blur-sm`}
+      className={clsx(
+        "absolute top-1 left-1/2 -translate-x-1/2 z-10 flex rounded-lg overflow-hidden shadow-lg ring-2 backdrop-blur-sm",
+        ringTone,
+        animate,
+      )}
       title={titleText}
     >
-      {/* Outgoing — your hit */}
-      <div className={`flex items-center gap-0.5 px-1.5 py-0.5 text-[12px] font-black tabular-nums ${outTone}`}>
+      <div className={clsx("flex items-center gap-0.5 px-1.5 py-0.5 text-[12px] font-black tabular-nums", outTone)}>
         <Chevron direction="up" />
         <span className="leading-none drop-shadow-sm">{out}</span>
         {attackerKOs && <SkullIcon />}
       </div>
 
-      {/* Divider slash — only if both halves visible */}
       {counters && <div className="w-px bg-black/40" />}
 
-      {/* Incoming — counter */}
       {counters && (
-        <div className={`flex items-center gap-0.5 px-1.5 py-0.5 text-[12px] font-black tabular-nums ${inTone}`}>
+        <div className={clsx("flex items-center gap-0.5 px-1.5 py-0.5 text-[12px] font-black tabular-nums", inTone)}>
           <Chevron direction="down" />
           <span className="leading-none drop-shadow-sm">{incoming}</span>
           {counterKOs && <SkullIcon />}
@@ -243,7 +258,7 @@ function Chevron({ direction }: { direction: "up" | "down" }) {
       width="9"
       height="9"
       viewBox="0 0 10 10"
-      className={`drop-shadow ${direction === "down" ? "rotate-180" : ""}`}
+      className={clsx("drop-shadow", direction === "down" && "rotate-180")}
       aria-hidden
     >
       <path d="M5 1 L9 8 L1 8 Z" fill="currentColor" />
@@ -281,7 +296,7 @@ function StatChip({
 }) {
   const boosted = boost !== 0;
   return (
-    <span className={boosted ? `${color} font-bold` : color}>
+    <span className={clsx(color, boosted && "font-bold")}>
       {base + boost} {label}
       {boosted ? <span className="text-[9px] opacity-80"> (+{boost})</span> : null}
     </span>

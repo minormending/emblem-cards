@@ -57,8 +57,8 @@ On failure it prints the file, the card id, and what's wrong. Fix and re-run.
 | Field    | Required | Notes                                                   |
 | -------- | -------- | ------------------------------------------------------- |
 | `type`   | yes      | `"unit"`, `"weapon"`, `"item"`, `"support"`, `"tactic"` |
-| `id`     | yes      | Unique, lowercase-dashed (e.g. `"lord-marth"`)          |
-| `name`   | yes      | Display name shown on the card                          |
+| `id`     | yes      | Unique, lowercase-dashed (e.g. `"lord-marth"`). Internal only — never shown to players. |
+| `name`   | yes      | Display name shown on the card. **Keep class-descriptive**, not a character name (e.g. `"Sword Lord"`, not a licensed character's name). |
 | `cost`   | yes      | Energy cost to play (non-negative integer)              |
 | `art`    | no       | `/cards/<filename>` — see [ADDING_CARD_ART.md](./ADDING_CARD_ART.md) |
 | `flavor` | no       | Italicized flavor text                                  |
@@ -86,14 +86,17 @@ On failure it prints the file, the card id, and what's wrong. Fix and re-run.
 A weapon must do *something* — either have a stat boost or an effect. The
 validator flags dead weapons.
 
+**STR/MAG are interchangeable attack-stat labels.** A weapon with `"statBoost": { "str": 3 }` equipped on a magical attacker (fire/wind/thunder) grants +3 MAG, not nothing. You only need to author one side. Same rule applies to `buff_target` tactic effects.
+
 ### `type: "item"` and `type: "tactic"`
 
 Just `effects` plus the common fields.
 
 ### `type: "support"`
 
-`pairRequirement: { classA, classB }` — both classes must be on the field for
-the effects to activate.
+`pairRequirement: { classA, classB }` — the support activates while **either** class is on your field. (Same-class pairs like `{ classA: "Cavalier", classB: "Cavalier" }` require two distinct units of that class.)
+
+Historical note: an earlier version required both classes at once, but that combo was nearly impossible to assemble in a 15-card deck. The current "either" rule is thematically looser but actually reachable.
 
 ## Effects
 
@@ -127,5 +130,13 @@ If you need a new kind, that's an engineering change — ping a dev.
 ## Renaming a card id
 
 If you change an `id`, any saved deck that referenced the old id will silently
-drop that card. Tell a dev before renaming so they can clean up referenced
-data (saved decks, fixtures, tests).
+drop that card. On mobile, saved decks and in-progress sessions live in AsyncStorage — existing users with a saved match will lose it. Tell a dev before renaming so they can clean up referenced data (saved decks, fixtures, tests).
+
+## After you edit
+
+1. `pnpm cards:check` — validate the JSON.
+2. `pnpm --filter @cards/card-engine build` — rebuild so clients pick up changes.
+3. Reload whichever client you're running:
+   - Web: Vite HMR handles it; the deck builder's card tabs update automatically.
+   - Mobile via Expo Go: shake device → Reload.
+   - Mobile via installed debug APK: rebuild and reinstall (see [MAKING_CHANGES.md](./MAKING_CHANGES.md)).

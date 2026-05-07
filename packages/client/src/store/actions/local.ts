@@ -25,6 +25,7 @@ import {
 import type { useGameStore } from "../gameStore";
 import { useLogStore } from "../logStore";
 import { useFxStore, isMagicalAttack } from "../fxStore";
+import { spawnPlayedFromEvents, spawnSpotlightsFromEvents } from "../spawnPlayed";
 import { sfx } from "../../lib/sounds";
 import { scheduleAITurn } from "../aiTurn";
 import type { GameActions } from "./types";
@@ -37,7 +38,7 @@ export function createLocalActions(store: Store): GameActions {
       const state = store.getState();
       const { gameState, mode } = state;
       if (!gameState) return fail(state, err(ErrorCode.NOT_IN_GAME));
-      if (mode === "ai" && gameState.currentPlayerIndex !== 0) {
+      if ((mode === "ai" || mode === "tournament") && gameState.currentPlayerIndex !== 0) {
         return fail(state, err(ErrorCode.NOT_YOUR_TURN));
       }
 
@@ -48,8 +49,14 @@ export function createLocalActions(store: Store): GameActions {
       } else {
         sfx.deploy();
         useLogStore.getState().addFromEvents(gameState, result.value);
+        appendMatchEvents(store, result.value);
         // Item/tactic damage events also get VFX (e.g. Meteor, Bolting).
         spawnCombatFx(gameState, result.value, mode);
+        // Center-screen flash for non-unit cards (items/weapons/supports).
+        spawnPlayedFromEvents(result.value, "own");
+        // Spotlight the target slot(s) so the viewer can follow card → impact.
+        const viewerId = gameState.players[mode === "ai" || mode === "tournament" ? 0 : gameState.currentPlayerIndex].id;
+        spawnSpotlightsFromEvents(result.value, gameState, viewerId, "own");
       }
       store.setState({ gameState: { ...gameState }, selectedHandIndex: null });
     },
@@ -58,7 +65,7 @@ export function createLocalActions(store: Store): GameActions {
       const state = store.getState();
       const { gameState, mode } = state;
       if (!gameState) return fail(state, err(ErrorCode.NOT_IN_GAME));
-      if (mode === "ai" && gameState.currentPlayerIndex !== 0) {
+      if ((mode === "ai" || mode === "tournament") && gameState.currentPlayerIndex !== 0) {
         return fail(state, err(ErrorCode.NOT_YOUR_TURN));
       }
 
@@ -73,6 +80,7 @@ export function createLocalActions(store: Store): GameActions {
 
         // Log
         useLogStore.getState().addFromEvents(gameState, events);
+        appendMatchEvents(store, events);
 
         // Toast: primary hit + counter if present
         const damageEvents = events.filter(
@@ -116,6 +124,7 @@ export function createLocalActions(store: Store): GameActions {
       sfx.endTurn();
       const events = endTurn(gameState);
       useLogStore.getState().addFromEvents(gameState, events);
+      appendMatchEvents(store, events);
 
       const drew = drawPhase(gameState);
       if (drew.ok) useLogStore.getState().addFromEvents(gameState, []); // no-op; draw events handled inside endTurn if any
@@ -127,7 +136,7 @@ export function createLocalActions(store: Store): GameActions {
       });
 
       // Hand off to the AI if it's now its turn
-      if (mode === "ai" && gameState.currentPlayerIndex === 1 && !gameState.winner) {
+      if ((mode === "ai" || mode === "tournament") && gameState.currentPlayerIndex === 1 && !gameState.winner) {
         scheduleAITurn(store);
       }
     },
@@ -139,6 +148,11 @@ export function createLocalActions(store: Store): GameActions {
 function fail(state: ReturnType<Store["getState"]>, e: ReturnType<typeof err>): void {
   sfx.error();
   state.showMessage(formatError(e.error));
+}
+
+export function appendMatchEvents(store: Store, events: GameEvent[]): void {
+  if (events.length === 0) return;
+  store.setState((s) => ({ matchEvents: [...s.matchEvents, ...events] }));
 }
 
 /** Set lastHitPos long enough to trigger the shake animation, then clear. */
@@ -163,7 +177,7 @@ function damageSide(
   event: Extract<GameEvent, { kind: "unit_damaged" }>,
   mode: string,
 ): "own" | "enemy" {
-  const viewerIndex = mode === "ai" ? 0 : state.currentPlayerIndex;
+  const viewerIndex = mode === "ai" || mode === "tournament" ? 0 : state.currentPlayerIndex;
   const currentIndex = state.currentPlayerIndex;
   const defenderIndex = event.isCounter
     ? currentIndex

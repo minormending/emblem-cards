@@ -44,31 +44,41 @@ If you're hardcoding a number that feels like a knob, put it here first.
 
 ## Add a new unit card
 
-1. Open `packages/card-engine/src/cards/units.ts`.
-2. Append a new object to the `units` array:
+All card data lives in JSON files under [packages/card-engine/src/cards/data/](../packages/card-engine/src/cards/data/), not in TypeScript. Validation still happens at module load.
 
-   ```typescript
+1. Open `packages/card-engine/src/cards/data/units.json`.
+2. Append a new entry to the array:
+
+   ```json
    {
-     type: "unit",
-     id: "cavalier-seth",          // unique, lowercase-hyphens
-     name: "Seth",                  // display name
-     class: "Cavalier",             // used by support cards for pairs
-     attackType: "lance",           // sword/axe/lance/bow/fire/wind/thunder
-     maxHp: 24,                     // MUST equal stats.hp
-     stats: { hp: 24, str: 11, mag: 0, def: 8, res: 4, spd: 9 },
-     tags: ["mounted"],             // infantry/mounted/armored/flying
-     effects: [],                   // optional: add special abilities
-     cost: 3,                       // Energy cost to deploy
-     isLord: false,                 // true if this is a Lord card
-     flavor: "The Silver Knight.",   // optional flavor text
+     "type": "unit",
+     "id": "cavalier-1",
+     "name": "Cavalier",
+     "class": "Cavalier",
+     "attackType": "lance",
+     "maxHp": 24,
+     "stats": { "hp": 24, "str": 11, "mag": 0, "def": 8, "res": 4, "spd": 9 },
+     "tags": ["mounted"],
+     "effects": [],
+     "cost": 3,
+     "isLord": false,
+     "flavor": "Charges the line before it can close ranks."
    }
    ```
 
-3. Run `pnpm turbo build`. The deck builder auto-picks up the new card.
+3. Rebuild the engines so clients pick up the new card:
 
-**Validation is automatic.** `validateCardData()` in `cards/index.ts` runs at
-module load and crashes on bad data — e.g. `maxHp !== stats.hp`, missing class,
-negative stats, duplicate ID. No more silent misbehavior at runtime.
+   ```bash
+   pnpm --filter @cards/card-engine build
+   ```
+
+   (Or run `pnpm build` from the root to rebuild everything.)
+
+**Naming convention:** `name` should describe the *class*, not a specific character. Use distinguishing qualifiers when multiple units share a class (`Fire Mage`, `Wind Mage`, `Thunder Mage`). This keeps the game trademark-clean for app-store distribution.
+
+**Validation is automatic.** `validate.ts` in the same folder runs at module load and crashes on bad data — e.g. `maxHp !== stats.hp`, missing class, negative stats, duplicate ID.
+
+**STR/MAG fallback:** weapons and `buff_target` tactic effects that grant `+STR` automatically translate to `+MAG` when equipped/applied to a magical attacker (fire/wind/thunder attackType), and vice versa. You don't need to author both sides — whichever stat the unit actually uses will get the bonus.
 
 ---
 
@@ -331,7 +341,7 @@ Quick lookup:
 | Thing | File |
 |-------|------|
 | Game rules / damage formula | `packages/card-engine/src/damage.ts` |
-| Card data | `packages/card-engine/src/cards/*.ts` |
+| Card data (JSON) | `packages/card-engine/src/cards/data/*.json` |
 | Card data validation | `packages/card-engine/src/cards/validate.ts` |
 | Turn flow | `packages/battle-engine/src/game.ts` |
 | Deploy (per-card-type handlers) | `packages/battle-engine/src/deploy.ts` |
@@ -355,3 +365,50 @@ Quick lookup:
 | Battle log | `packages/client/src/store/logStore.ts` |
 | Sound effects | `packages/client/src/lib/sounds.ts` |
 | Tutorial content | `packages/client/src/components/HowToPlay.tsx` |
+| Mobile battle screen | `packages/mobile/src/pages/Battle.tsx` |
+| Mobile card rendering | `packages/mobile/src/components/CardView.tsx` |
+| Mobile card art (SVG) | `packages/mobile/src/components/CardArt.tsx` |
+| Mobile haptic SFX | `packages/mobile/src/lib/sounds.ts` |
+| Mobile persistence (decks, session, stats) | `packages/mobile/src/lib/{decks,session,stats,settings,identity}.ts` |
+| Mobile release signing | `packages/mobile/scripts/setup-signing.sh` |
+| Mobile build-release pipeline | `packages/mobile/scripts/build-release.sh` |
+
+---
+
+## Ship an Android release to the Play Store
+
+Everything lives in [packages/mobile/release/README.md](../packages/mobile/release/README.md). The short version:
+
+```bash
+cd packages/mobile
+./scripts/build-release.sh --bump patch   # or minor/major
+```
+
+Output: `packages/mobile/release/emblem-cards-game-v<version>-<code>.aab` (signed, ready to upload). First release? Follow the Play Console checklist in the release README.
+
+---
+
+## Run the mobile app on a device
+
+Two paths:
+
+**Expo Go (fastest for dev):**
+
+```bash
+pnpm --filter @cards/mobile start
+# scan the QR code with Expo Go on Android
+```
+
+**Real debug APK (no Metro, no LAN dependency):**
+
+```bash
+cd packages/mobile
+npx expo export:embed --platform android --dev false \
+  --entry-file packages/mobile/index.ts \
+  --bundle-output android/app/src/main/assets/index.android.bundle \
+  --assets-dest android/app/src/main/res
+cd android && ./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Full prerequisites (JDK 17 + Android SDK setup) are in [packages/mobile/README.md](../packages/mobile/README.md).

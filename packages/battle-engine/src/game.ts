@@ -15,6 +15,7 @@ import type {
   Player,
   Card,
   UnitCard,
+  WeaponCard,
   SupportCard,
   FieldPosition,
   Effect,
@@ -76,10 +77,40 @@ function makePlayer(id: string, deck: Card[]): Player {
   };
 }
 
+/**
+ * Unbiased uniform integer in [0, max). Pulls from Web Crypto when available
+ * (Node 22 + every modern browser ship `crypto.getRandomValues`), with a
+ * Math.random fallback for older runtimes (jsdom in tests, mostly).
+ *
+ * Why crypto: the engine runs server-side authoritatively, and Math.random
+ * is a predictable PRNG — observing enough draws would let a determined
+ * player predict deck order. Cost is negligible.
+ *
+ * Why rejection-sampling: trimming the modulo bias matters more than people
+ * think — without it, low values would be slightly favored when the random
+ * range isn't a multiple of `max`.
+ */
+function randomIntBelow(max: number): number {
+  const cryptoObj: Crypto | undefined =
+    typeof globalThis !== "undefined" ? (globalThis as { crypto?: Crypto }).crypto : undefined;
+  if (cryptoObj?.getRandomValues) {
+    const buf = new Uint32Array(1);
+    const limit = Math.floor(0xffffffff / max) * max;
+    // Reject values in the biased tail; loop is O(1) amortized.
+    let v: number;
+    do {
+      cryptoObj.getRandomValues(buf);
+      v = buf[0];
+    } while (v >= limit);
+    return v % max;
+  }
+  return Math.floor(Math.random() * max);
+}
+
 /** Fisher-Yates — uniformly random. Don't replace with .sort(Math.random()-0.5). */
 function shuffle<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomIntBelow(i + 1);
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
@@ -88,8 +119,16 @@ function shuffle<T>(arr: T[]): T[] {
 // ── Support-pair predicate ──
 
 /**
- * True when both classes required by a support are present on the field.
- * Same-class pairs (Cavalier+Cavalier) require TWO distinct units of that class.
+ * True when at least one of the support's listed classes is on the field.
+ *
+ * The original design required BOTH classes to be present at the same time,
+ * but with 15-card decks that combo almost never landed — supports felt
+ * like dead draws. This loosens to "either class present" so the support
+ * card activates as soon as one relevant unit is deployed, keeping the
+ * thematic pairing in the card text but making the effect actually reachable.
+ *
+ * Same-class pairs (e.g. Cavalier+Cavalier) still require two distinct
+ * units of that class, since "one of A or B" would otherwise be "one of A".
  */
 export function isSupportPairActive(field: Field, support: SupportCard): boolean {
   const { classA, classB } = support.pairRequirement;
@@ -100,7 +139,7 @@ export function isSupportPairActive(field: Field, support: SupportCard): boolean
   if (classA === classB) {
     return classes.filter((c) => c === classA).length >= 2;
   }
-  return classes.includes(classA) && classes.includes(classB);
+  return classes.includes(classA) || classes.includes(classB);
 }
 
 // ── Draw phase ──
@@ -119,6 +158,45 @@ export function drawPhase(state: GameState): Result<boolean> {
 
 // ── Deploy (delegated to ./deploy.ts) ──
 export { deployCard } from "./deploy.js";
+
+// ── Post-combat debuffs ──
+
+function hasRiposte(unit: UnitCard, weapon: WeaponCard | null): boolean {
+  if (unit.effects.some((e) => e.kind === "riposte")) return true;
+  return weapon ? weapon.effects.some((e) => e.kind === "riposte") : false;
+}
+
+function applyPostCombatDebuffs(
+  attackerUnit: UnitCard,
+  attackerWeapon: WeaponCard | null,
+  defenderUnit: UnitCard,
+  defenderPos: FieldPosition,
+  events: GameEvent[],
+): void {
+  const effects: Effect[] = [...attackerUnit.effects];
+  if (attackerWeapon) effects.push(...attackerWeapon.effects);
+
+  for (const effect of effects) {
+    if (effect.kind === "shatter") {
+      const reduction = Math.min(effect.amount, defenderUnit.stats.def);
+      if (reduction > 0) {
+        defenderUnit.stats.def -= reduction;
+        events.push({ kind: "unit_buffed", position: defenderPos, stat: "def", amount: -reduction });
+      }
+    } else if (effect.kind === "suppress") {
+      const magical =
+        defenderUnit.attackType === "fire" ||
+        defenderUnit.attackType === "wind" ||
+        defenderUnit.attackType === "thunder";
+      const stat = magical ? "mag" : "str";
+      const reduction = Math.min(effect.amount, defenderUnit.stats[stat]);
+      if (reduction > 0) {
+        defenderUnit.stats[stat] -= reduction;
+        events.push({ kind: "unit_buffed", position: defenderPos, stat, amount: -reduction });
+      }
+    }
+  }
+}
 
 // ── Attack ──
 
@@ -188,6 +266,9 @@ export function attackAction(
       defenderName: defSlot.unit.name,
       defenderMaxHp: defSlot.unit.maxHp,
       attackerAttackType: atkSlot.unit.attackType,
+      attackerUnit: atkSlot.unit,
+      attackerOwner: player.id,
+      defenderUnit: defSlot.unit,
     },
   ];
 
@@ -209,19 +290,25 @@ export function attackAction(
     }
   }
 
+  // ── Post-combat debuffs (shatter / suppress) ──
+  if (!defenderKOd) {
+    applyPostCombatDebuffs(atkSlot.unit, atkSlot.weapon, defSlot.unit!, defenderPos, events);
+  }
+
   // ── Counter-attack ──
   // If the defender survived and can reach the attacker under the normal
   // reach rules, they retaliate automatically. The counter does not consume
   // the defender's `hasActed` — it's a reaction, not their scheduled action.
+  // Riposte treats the defender as ranged for the counter-attack reach check,
+  // so front-row melee units can counter ranged attackers. Back-row positional
+  // restrictions still apply (can't riposte through your own front line).
   if (!defenderKOd && !state.winner) {
-    // After KO handling above, defSlot still references the same slot, and
-    // we know defSlot.unit is non-null because the defender survived.
     const counterReaches = canReach(
       opponent.field,
       defenderPos,
       player.field,
       attackerPos,
-      isRanged(defSlot.unit!, defSlot.weapon),
+      hasRiposte(defSlot.unit!, defSlot.weapon) || isRanged(defSlot.unit!, defSlot.weapon),
       isFlying(defSlot.unit!, defSlot.weapon),
     );
     if (counterReaches) {
@@ -254,8 +341,16 @@ export function attackAction(
         defenderName: atkSlot.unit.name,
         defenderMaxHp: atkSlot.unit.maxHp,
         attackerAttackType: defSlot.unit!.attackType,
+        attackerUnit: defSlot.unit!,
+        attackerOwner: opponent.id,
+        defenderUnit: atkSlot.unit,
         isCounter: true,
       });
+
+      // Post-combat debuffs from the counter-attacker
+      if (atkSlot.unit.stats.hp > 0) {
+        applyPostCombatDebuffs(defSlot.unit!, defSlot.weapon, atkSlot.unit, attackerPos, events);
+      }
 
       if (atkSlot.unit.stats.hp <= 0) {
         const dyingAttacker = atkSlot.unit;
@@ -375,7 +470,7 @@ export function previewCombat(
     defenderPos,
     attackerField,
     attackerPos,
-    isRanged(defSlot.unit, defSlot.weapon),
+    hasRiposte(defSlot.unit, defSlot.weapon) || isRanged(defSlot.unit, defSlot.weapon),
     isFlying(defSlot.unit, defSlot.weapon),
   );
   if (!canCounter) {
@@ -479,9 +574,10 @@ export function endTurn(state: GameState): GameEvent[] {
   resetActedFlags(next.field);
   state.turnStep = "draw";
 
-  // Deck-out loss: incoming player has no cards and no units
+  // Deck-out loss: incoming player has no cards anywhere and no units
   if (
     next.deck.length === 0 &&
+    next.hand.length === 0 &&
     getOccupiedPositions(next.field).length === 0 &&
     !state.winner
   ) {

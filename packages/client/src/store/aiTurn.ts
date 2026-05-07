@@ -17,6 +17,9 @@
 import type { FieldPosition, GameEvent, GameState } from "@cards/shared";
 import { AI_ACTION_DELAY_MS, AI_MAX_ACTIONS_PER_TURN, AI_TURN_DELAY_MS } from "@cards/shared";
 import {
+  AI_PRESETS,
+  DEFAULT_AI_CONFIG,
+  aggressionComponent,
   attackAction,
   currentPlayer,
   deployCard,
@@ -24,10 +27,14 @@ import {
   endTurn,
   explainAction,
   pickBestAction,
+  scoreAllActions,
+  scoreWithLookahead,
 } from "@cards/battle-engine";
-import type { AIAction } from "@cards/battle-engine";
+import type { AIAction, AIConfig } from "@cards/battle-engine";
 import type { useGameStore } from "./gameStore";
 import { useLogStore } from "./logStore";
+import { appendMatchEvents } from "./actions/local";
+import { spawnPlayedFromEvents, spawnSpotlightsFromEvents } from "./spawnPlayed";
 import { useFxStore, isMagicalAttack } from "./fxStore";
 import { sfx } from "../lib/sounds";
 
@@ -69,7 +76,7 @@ function runNextAction(store: Store, iteration: number): void {
     return;
   }
 
-  const action = pickBestAction(gs);
+  const action = pickNextAction(state, gs);
   if (!action) {
     finishAITurn(store, gs);
     return;
@@ -130,6 +137,11 @@ function applyActionFx(
   preText: string | null
 ): void {
   useLogStore.getState().addFromEvents(gs, events);
+  appendMatchEvents(store, events);
+  // AI plays from the opponent seat — viewer sees them as "enemy" side.
+  spawnPlayedFromEvents(events, "enemy");
+  // Viewer is always player 0 in AI mode; AI is the actor on the enemy side.
+  spawnSpotlightsFromEvents(events, gs, gs.players[0].id, "enemy");
 
   const show = store.getState().showMessage;
 
@@ -206,16 +218,65 @@ function finishAITurn(store: Store, gs: GameState): void {
   }
   const endEvents = endTurn(gs);
   useLogStore.getState().addFromEvents(gs, endEvents);
+  appendMatchEvents(store, endEvents);
   drawPhase(gs);
   store.setState({ gameState: { ...gs } });
 }
 
 /** True if the store is still in a valid state for the AI to act. */
 function canAIAct(state: ReturnType<Store["getState"]>): boolean {
-  if (state.mode !== "ai") return false;
+  if (state.mode !== "ai" && state.mode !== "tournament") return false;
   if (!state.gameState) return false;
   if (state.gameState.winner) return false;
   return state.gameState.currentPlayerIndex === 1;
+}
+
+/** Branch cap for depth-2 lookahead, mirrors engine-side LOOKAHEAD_BRANCH_CAP. */
+const LOOKAHEAD_BRANCH_CAP = 6;
+
+/**
+ * Pick the next action the AI will take.
+ *
+ * In default AI mode this is a one-line passthrough to `pickBestAction` so
+ * existing behavior is preserved. In tournament mode we honor the opponent's
+ * AIConfig preset (threshold, aggression weight, top-K sampling, depth-2
+ * lookahead for expert) without re-implementing the per-action dispatch
+ * loop the scheduler already owns.
+ */
+function pickNextAction(
+  state: ReturnType<Store["getState"]>,
+  gs: GameState,
+): AIAction | null {
+  if (state.mode !== "tournament" || !state.currentOpponent) {
+    return pickBestAction(gs);
+  }
+
+  const config: AIConfig = AI_PRESETS[state.currentOpponent.ai] ?? DEFAULT_AI_CONFIG;
+  const all = scoreAllActions(gs);
+  if (all.length === 0) return null;
+
+  const weighted = all.map((a) => ({
+    action: a,
+    score: config.aggressionWeight === 1
+      ? a.score
+      : a.score + (config.aggressionWeight - 1) * aggressionComponent(a),
+  }));
+  weighted.sort((a, b) => b.score - a.score);
+
+  if (config.searchDepth === 2) {
+    const branches = weighted.slice(0, LOOKAHEAD_BRANCH_CAP).map((w) => ({
+      action: w.action,
+      score: scoreWithLookahead(gs, w.action) + (w.score - w.action.score),
+    }));
+    branches.sort((a, b) => b.score - a.score);
+    for (let i = 0; i < branches.length; i++) weighted[i] = branches[i];
+  }
+
+  const qualified = weighted.filter((w) => w.score > config.scoreThreshold);
+  if (qualified.length === 0) return null;
+  const k = Math.max(1, Math.min(config.topK, qualified.length));
+  const idx = k === 1 ? 0 : Math.floor(Math.random() * k);
+  return qualified[idx].action;
 }
 
 /** Shake animation on the hit slot, same as in the player's attack path. */

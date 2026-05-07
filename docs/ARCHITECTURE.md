@@ -6,40 +6,42 @@ making changes — it will save you time hunting through files.
 ## The big picture
 
 ```
-┌─────────────────────────────────────────┐
-│              @cards/client              │  React UI, Zustand store
-│  (browser: menu, deck builder, battle)  │  socket.io-client
-└───────────────┬─────────────────────────┘
-                │                ▲
-                │ socket events  │ state updates (pure)
-                ▼                │
-┌─────────────────────────────────────────┐
-│             @cards/server               │  Node + Socket.IO
-│  (matchmaking, GameRoom per match)      │
-└───────────────┬─────────────────────────┘
-                │
-                │ imports game logic
-                ▼
-┌─────────────────────────────────────────┐
-│         @cards/battle-engine            │  Pure TypeScript
-│  (createGame, deployCard, attackAction, │  No I/O, no React, no sockets
-│   endTurn, checkWinCondition, AI...)    │  Actions return GameEvent[]
-└───────────────┬─────────────────────────┘
-                │
-                │ calculateDamage, cards data
-                ▼
-┌─────────────────────────────────────────┐
-│          @cards/card-engine             │  Pure TypeScript
-│  (damage formula, triangle rules,       │
-│   all card data — units, weapons, etc.) │
-└───────────────┬─────────────────────────┘
-                │
-                │ types, constants, Result, events, clone
-                ▼
-┌─────────────────────────────────────────┐
-│            @cards/shared                │  Types + constants ONLY
-│                                         │  (no runtime deps)
-└─────────────────────────────────────────┘
+┌──────────────────────┐    ┌──────────────────────┐
+│   @cards/client      │    │   @cards/mobile      │
+│   React web app      │    │   React Native / Expo │
+│   (Vite + zustand)    │    │   Android app (zustand) │
+└───────────┬──────────┘    └───────────┬──────────┘
+            │                            │
+            │ Shared zustand store shape │
+            │ + socket.io-client         │
+            ▼                            ▼
+    ┌─────────────────────────────────────────┐
+    │             @cards/server               │  Node + Socket.IO
+    │  (matchmaking, GameRoom per match)      │  Only involved in online mode
+    └───────────────┬─────────────────────────┘
+                    │
+                    │ imports game logic
+                    ▼
+    ┌─────────────────────────────────────────┐
+    │         @cards/battle-engine            │  Pure TypeScript
+    │  (createGame, deployCard, attackAction, │  No I/O, no React, no sockets
+    │   endTurn, checkWinCondition, AI...)    │  Actions return GameEvent[]
+    └───────────────┬─────────────────────────┘
+                    │
+                    │ calculateDamage, cards data
+                    ▼
+    ┌─────────────────────────────────────────┐
+    │          @cards/card-engine             │  Pure TypeScript
+    │  (damage formula, triangle rules,       │
+    │   all card data — units, weapons, etc.) │
+    └───────────────┬─────────────────────────┘
+                    │
+                    │ types, constants, Result, events, clone
+                    ▼
+    ┌─────────────────────────────────────────┐
+    │            @cards/shared                │  Types + constants ONLY
+    │                                         │  (no runtime deps)
+    └─────────────────────────────────────────┘
 ```
 
 Lower packages know nothing about higher ones. This is important:
@@ -134,6 +136,29 @@ React app. Single Zustand store with separate action modules:
 | `lib/` | Small pure utilities (sounds, identity, deckBuilder, effect labels) |
 
 Battle pages call `store.getActions().deploy(...)` — no mode branching in the UI.
+
+### @cards/mobile
+
+React Native (Expo) Android app. Mirrors the `client` architecture so the lessons you learn in one apply to the other:
+
+| File | Purpose |
+|------|---------|
+| `App.tsx` | Screen router + boot hydration (AsyncStorage → memory cache) + ErrorBoundary + ScreenFade |
+| `src/store/` | Same zustand store shape as client: `gameStore`, `selectors`, `actions/{local,online,types}`, `aiTurn`, `logStore`, `socket`, `socketListeners`, `fxStore` |
+| `src/pages/` | `Menu`, `DeckBuilder`, `Matchmaking`, `Battle` — RN equivalents of the client pages |
+| `src/components/` | RN-native `CardView`, `FieldSlotView`, `HandView`, `CardInspector` (modal), `HowToPlay`, `BattleHints`, `Settings`, `MiniLog`, `ErrorBoundary`, `ScreenFade` |
+| `src/components/battle/` | `EnergyBar`, `TurnBanner` (with flash), `MatchClock`, `Toast` (animated), `CombatFx`, `Confetti`, `WinnerScreen`, `FieldGrid`, `TurnTransitionOverlay`, `ConnectionBanner` |
+| `src/components/CardArt.tsx` | SVG-based card art, faithfully ported via `react-native-svg` |
+| `src/hooks/` | `useBattleSlotHandlers`, `useWinSound`, `useRecordOutcome`, `useBackHandler` (Android hardware back routing) |
+| `src/lib/storage.ts` | Sync-read cache over AsyncStorage — `hydrateStorage([...keys])` at boot, then synchronous `getItem`/`setItem` everywhere |
+| `src/lib/identity.ts`, `firstTime.ts`, `settings.ts`, `stats.ts` | Persistent state (player ID, tutorial flags, haptics toggle + server URL override, win/loss record) |
+| `src/lib/session.ts`, `decks.ts` | In-progress game + deck persistence (async, versioned JSON blobs) |
+| `src/lib/sounds.ts` | `expo-haptics`-based SFX (game uses haptic feedback instead of Web Audio tones) |
+| `scripts/build-release.sh` | One-command signed AAB build for Play Store |
+| `scripts/setup-signing.sh` | Reapplies release signing config after `expo prebuild --clean` |
+| `release/` (gitignored) | Keystore, credentials, signed AAB, Play Store assets |
+
+Mode-agnostic actions work the same way as on the client (`store.getActions().deploy(...)`). The engine packages are consumed via their compiled `dist/`, so **rebuild the engines** (`pnpm --filter @cards/card-engine build` etc.) after editing engine source before the mobile bundle picks up changes — the one-shot `scripts/build-release.sh` does this for you.
 
 ## Key patterns
 

@@ -53,6 +53,12 @@ export type GameEvent =
       attackerAttackType?: AttackType;
       /** True when this hit is the defender's counter-attack reaction. */
       isCounter?: boolean;
+      /** Full attacker card — present for combat events, enables MVP stats. */
+      attackerUnit?: UnitCard;
+      /** playerId of the attacker — present for combat events. */
+      attackerOwner?: string;
+      /** Full defender card — enables killing-blow stats. */
+      defenderUnit?: UnitCard;
     }
   | { kind: "unit_healed"; position: FieldPosition; amount: number; hpAfter: number }
   | { kind: "unit_buffed"; position: FieldPosition; stat: keyof Stats; amount: number }

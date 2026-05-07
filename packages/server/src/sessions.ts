@@ -57,15 +57,45 @@ export class SessionStore {
   }
 }
 
-/** Validate an auth payload. Returns error message or null. */
-export function validateAuth(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return "Missing auth payload";
+// Letters, numbers, space, underscore, dot, hyphen — enough for any natural
+// script but excluding control chars, whitespace trickery (tabs/newlines), and
+// punctuation commonly used for impersonation (e.g. zero-width joiners).
+const DISPLAY_NAME_PATTERN = /^[\p{L}\p{N} _.\-]{1,20}$/u;
+
+// playerId is a UUID-shaped opaque string from the client's localStorage. We
+// allow a broader alphabet than strict UUID to keep the door open for other
+// schemes later, but forbid anything that could sneak into log lines or paths.
+const PLAYER_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+
+/**
+ * Validate an auth payload. Returns { error } or { ok, normalized } where
+ * `displayName` has been NFC-normalized so equivalent unicode forms compare
+ * consistently. Callers should use the normalized value going forward.
+ */
+export type AuthValidation =
+  | { ok: true; playerId: string; displayName: string }
+  | { ok: false; error: string };
+
+export function validateAuth(payload: unknown): AuthValidation {
+  if (!payload || typeof payload !== "object") return { ok: false, error: "Missing auth payload" };
   const p = payload as { playerId?: unknown; displayName?: unknown };
-  if (typeof p.playerId !== "string" || p.playerId.length < 8 || p.playerId.length > 64) {
-    return "Invalid playerId";
+
+  if (typeof p.playerId !== "string" || !PLAYER_ID_PATTERN.test(p.playerId)) {
+    return { ok: false, error: "Invalid playerId" };
   }
-  if (typeof p.displayName !== "string" || p.displayName.length === 0 || p.displayName.length > 20) {
-    return "Display name must be 1-20 characters";
+  if (typeof p.displayName !== "string") {
+    return { ok: false, error: "Display name is required" };
   }
-  return null;
+
+  // Normalize first so the regex sees a canonical form. Precomposed vs
+  // decomposed unicode would otherwise flip the length and pattern match.
+  const normalized = p.displayName.normalize("NFC");
+  if (!DISPLAY_NAME_PATTERN.test(normalized)) {
+    return {
+      ok: false,
+      error: "Display name must be 1-20 letters, numbers, spaces, or . _ -",
+    };
+  }
+
+  return { ok: true, playerId: p.playerId, displayName: normalized };
 }

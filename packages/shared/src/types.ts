@@ -44,7 +44,20 @@ export type Effect =
   | { kind: "heal_adjacent"; amount: number }
   /** Restore HP to a targeted own unit (items). Capped at maxHp. */
   | { kind: "heal_target"; amount: number }
-  /** Buff a stat on a targeted own unit. Duration is NOT currently tracked. */
+  /**
+   * Buff a stat on a targeted own unit.
+   *
+   * TODO(buff-duration): `duration` is included in card data and shown in
+   * tooltips as "+N STAT (Xt)" but is NOT enforced by the engine — buffs
+   * are permanent for the rest of the match. Two paths to resolve:
+   *   (1) Implement decay: track active buffs per unit, decrement at the
+   *       buffed player's endTurn, emit unit_debuffed events, update
+   *       effectLabel to match the actual behavior.
+   *   (2) Remove duration: drop from this type, schema.ts, items.json,
+   *       tactics.json, and effectLabel(). Cards become "permanent buffs".
+   *
+   * Until then this is a known gameplay/UX inconsistency — see audit M7.
+   */
   | { kind: "buff_target"; stat: keyof Stats; amount: number; duration: number }
   /** Deal direct damage to an enemy unit (tactics). */
   | { kind: "damage_target"; amount: number }
@@ -56,6 +69,14 @@ export type Effect =
   | { kind: "ranged" }
   /** Unit is flying: same as ranged, plus takes bonus damage from anti-flying effects. */
   | { kind: "flying" }
+  /** Always counter-attacks, even against ranged attackers. */
+  | { kind: "riposte" }
+  /** Ignores 50% of defender's DEF during damage calc. */
+  | { kind: "pierce" }
+  /** After dealing damage, reduce target's DEF by amount (permanent). */
+  | { kind: "shatter"; amount: number }
+  /** After dealing damage, reduce target's STR/MAG by amount (permanent). */
+  | { kind: "suppress"; amount: number }
   /** Support card: grants a stat bonus while its pair of classes is active on the field. */
   | { kind: "pair_bonus"; stat: keyof Stats; amount: number };
 
@@ -73,7 +94,6 @@ export interface UnitCard {
   effects: Effect[];
   cost: number; // deployment cost
   isLord: boolean;
-  art?: string; // path or URL to card art
   flavor?: string;
 }
 
@@ -85,7 +105,6 @@ export interface WeaponCard {
   statBoost: Partial<Stats>;
   effects: Effect[];
   cost: number;
-  art?: string;
   flavor?: string;
 }
 
@@ -95,7 +114,6 @@ export interface ItemCard {
   name: string;
   effects: Effect[];
   cost: number;
-  art?: string;
   flavor?: string;
 }
 
@@ -107,7 +125,6 @@ export interface SupportCard {
   pairRequirement: { classA: string; classB: string };
   effects: Effect[];
   cost: number;
-  art?: string;
   flavor?: string;
 }
 
@@ -117,7 +134,6 @@ export interface TacticCard {
   name: string;
   effects: Effect[];
   cost: number;
-  art?: string;
   flavor?: string;
 }
 

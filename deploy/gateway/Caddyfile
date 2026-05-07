@@ -1,0 +1,97 @@
+# Gateway Caddy — single TLS endpoint in front of every app on this droplet.
+#
+# Per-app rules strip the path prefix before proxying so each app container
+# sees plain "/" paths. Add a new block for each additional app; Caddy sorts
+# `handle` matchers by specificity automatically.
+#
+# All traffic is encrypted via Let's Encrypt (auto-renewed). The SITE_ADDRESS
+# env var is the sslip.io hostname for the droplet IP.
+
+# Global options. `admin off` disables the Caddy admin API on :2019 so a
+# container co-tenant on the same docker network can't reload the config or
+# read TLS state. Config reloads happen via `docker compose restart`.
+{
+	admin off
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Global security headers. Applied to every response, including the
+	# landing page and any app passthrough.
+	#
+	# CSP is the defense-in-depth lid: scripts and network connections are
+	# locked to same-origin, so an XSS can't pull payloads from attacker-
+	# controlled hosts. `'unsafe-inline'` for style is required by Tailwind's
+	# arbitrary values (e.g. `text-[10px]`) which emit inline style. Socket.io
+	# uses same-origin wss, covered by `connect-src 'self'`. CalcuKen loads
+	# Google Fonts and KaTeX CSS from CDN, so font-src and style-src include
+	# those origins.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; script-src 'self'; connect-src 'self'; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		-Server
+	}
+
+	# ── Emblem Cards ──────────────────────────────────────────────
+	# /emblem/socket.io/* → server container (websockets + long-poll)
+	# /emblem/*           → web container (static Vite build)
+	# handle_path strips the matcher's prefix; the app containers then serve
+	# plain "/"-rooted paths and stay portable across mount points.
+	handle_path /emblem/* {
+		@socketio path /socket.io/*
+		handle @socketio {
+			# Strip any client-supplied X-Forwarded-For before reverse_proxy
+			# sets it to the real remote IP. Without this, Caddy appends, and
+			# a malicious client could inject `X-Forwarded-For: 1.2.3.4` to
+			# impersonate a different IP for the server's rate limiter.
+			request_header -X-Forwarded-For
+			reverse_proxy emblem-server:3001
+		}
+		handle {
+			request_header -X-Forwarded-For
+			reverse_proxy emblem-web:80
+		}
+	}
+
+	# ── CalcuKen ──────────────────────────────────────────────────
+	handle_path /calcuken/* {
+		request_header -X-Forwarded-For
+		reverse_proxy calcuken-web:80
+	}
+
+	# ── Dungeon Crawler Carl ──────────────────────────────────────
+	handle_path /dcc/* {
+		request_header -X-Forwarded-For
+		reverse_proxy dcc-web:80
+	}
+
+	# ── NYC: Slice of Life ────────────────────────────────────────
+	handle_path /nyc-lyfe/* {
+		request_header -X-Forwarded-For
+		reverse_proxy nyc-lyfe-web:80
+	}
+
+	# ── Auth Service ─────────────────────────────────────────────
+	handle_path /auth/* {
+		request_header -X-Forwarded-For
+		reverse_proxy auth-server:3002
+	}
+
+	# ── Root: tiny landing page listing the apps ──────────────────
+	handle {
+		root * /srv/landing
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# Redirect bare HTTP to HTTPS. Caddy auto-provisions certs; this block just
+# catches any stragglers that somehow reach :80 directly.
+http://{$SITE_ADDRESS} {
+	redir https://{host}{uri} permanent
+}

@@ -1,6 +1,6 @@
 # Emblem Cards
 
-A multiplayer tactical card game inspired by Fire Emblem, built as a TypeScript monorepo. Players build decks of units, weapons, items, support pairs, and tactics, then deploy them onto a 3x2 battlefield grid. The game supports both local hot-seat play (two players on one screen) and online play through a real-time server.
+A two-player tactical card game built as a TypeScript monorepo. Players build decks of units, weapons, items, support pairs, and tactics, then deploy them onto a 3×2 battlefield grid. There's a web client (React + Vite), a native Android app (React Native + Expo), and a real-time server for online matchmaking. Local hot-seat and AI modes work fully offline on either client.
 
 ---
 
@@ -8,6 +8,15 @@ A multiplayer tactical card game inspired by Fire Emblem, built as a TypeScript 
 
 - **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** — Package layout, data flow diagrams, and key invariants.
 - **[docs/MAKING_CHANGES.md](./docs/MAKING_CHANGES.md)** — Step-by-step recipes for common tasks (add a card, tweak balance, add an effect, debug issues).
+- **[docs/ADDING_CARD_ART.md](./docs/ADDING_CARD_ART.md)** — Drop a PNG, validate with `pnpm cards:check`. No manifest to edit.
+- **[docs/SECURITY.md](./docs/SECURITY.md)** — Consolidated security controls across network, container, and application layers.
+
+Deploying to the droplet:
+
+- **[DEPLOY.md](./DEPLOY.md)** — Top-level deploy guide.
+- **[deploy/README.md](./deploy/README.md)** — Map of the deploy directory.
+- **[deploy/gateway/README.md](./deploy/gateway/README.md)** — Shared Caddy gateway (TLS + routing).
+- **[deploy/emblem/README.md](./deploy/emblem/README.md)** — This app's production compose.
 
 This README is the long-form reference. The docs above are quicker for day-to-day work.
 
@@ -31,7 +40,7 @@ This README is the long-form reference. The docs above are quicker for day-to-da
 
 ## 1. Project Overview
 
-Emblem Cards is a two-player card battle game. Think of it like a simplified Fire Emblem game, but instead of moving units on a large grid map, you play cards from your hand onto a small 3x2 battlefield.
+Emblem Cards is a two-player card battle game. Think of it like a simplified tactical RPG: instead of moving units on a large grid map, you play cards from your hand onto a small 3×2 battlefield, and class matchups, weapon triangles, and support pairings decide the outcome.
 
 Here is what a player does in a typical game:
 
@@ -40,13 +49,14 @@ Here is what a player does in a typical game:
 3. **Each turn**, you draw a card, spend energy to deploy units onto field slots, equip weapons, play items or tactics, and order your units to attack enemy units.
 4. **Win** by knocking out the enemy Lord, routing the enemy (no units on the field + none in hand or deck), or forcing a deck-out.
 
-The project is split into five packages inside a monorepo:
+The project is split into six packages inside a monorepo:
 
-- `shared` -- type definitions and network protocol shared by everything
-- `card-engine` -- card data, damage formulas, and the weapon/magic triangle
-- `battle-engine` -- the full game state machine (deploy, attack, end turn, win conditions)
-- `server` -- a Socket.IO server for online matchmaking and game rooms
-- `client` -- a React web app where players actually see and play the game
+- `shared` — type definitions and network protocol shared by everything
+- `card-engine` — card data, damage formulas, and the weapon/magic triangle
+- `battle-engine` — the full game state machine (deploy, attack, end turn, win conditions)
+- `server` — a Socket.IO server for online matchmaking and game rooms
+- `client` — a React **web** app
+- `mobile` — a React Native (Expo) **Android** app — same engine, native UI
 
 ---
 
@@ -112,7 +122,7 @@ If you only know vanilla JavaScript, every tool below will be new. This section 
 
 ### Turborepo
 
-**What it is:** Turborepo is a build system for monorepos. When you run `pnpm build`, Turborepo figures out the correct order to build all five packages (shared first, then card-engine, then battle-engine, etc.) and caches the results so it does not rebuild packages that have not changed.
+**What it is:** Turborepo is a build system for monorepos. When you run `pnpm build`, Turborepo figures out the correct order to build all packages (shared first, then card-engine, then battle-engine, etc.) and caches the results so it does not rebuild packages that have not changed.
 
 **Why we use it:** Without Turborepo, you would have to manually `cd` into each package and run `build` in the right order. Turborepo reads the dependency graph from each `package.json` and does it all with one command: `pnpm build`.
 
@@ -150,7 +160,7 @@ cards/
         cards/
           index.ts          -- Aggregates all arrays, runs validation
           validate.ts       -- Fail-fast invariant checks at module load
-          units.ts          -- All unit cards (Marth, Karel, Hawkeye, ...)
+          units.ts          -- All unit cards (Sword Lord, Knight, Berserker, Mage, ...)
           weapons.ts        -- All weapons (Iron Sword, Javelin, Excalibur, ...)
           items.ts          -- All items (Vulnerary, Pure Water, Energy Ring)
           supports.ts       -- All supports (Bond of Arms, Wing Sisters, ...)
@@ -235,6 +245,38 @@ cards/
           colors.ts         -- Tailwind color map for card types
           effects.ts        -- effectLabel() for rendering
           firstTime.ts      -- First-visit flags for tutorial
+
+    mobile/                 -- React Native (Expo) Android app
+      app.json              -- Expo config (name, icon, splash, plugins, versions)
+      index.ts              -- registerRootComponent entry point
+      App.tsx               -- Top-level tree + screen router + boot hydration
+      assets/               -- App icon, adaptive icon, splash image (generated)
+      scripts/
+        build-release.sh    -- One-command signed AAB build for Play Store
+        setup-signing.sh    -- Reapplies signing config after `expo prebuild --clean`
+        capture-screenshot.sh -- Saves a device screenshot into release/
+        make-icons.py       -- Regenerates app icons via PIL
+        make-store-assets.py -- Regenerates 512×512 + 1024×500 store graphics
+      release/              -- (gitignored) Keystore, credentials, signed AAB, store assets
+      src/
+        pages/              -- Menu, DeckBuilder, Matchmaking, Battle (RN equivalents)
+        components/         -- RN-native CardView, FieldSlotView, HandView, HowToPlay, etc.
+        components/battle/  -- EnergyBar, TurnBanner, FieldGrid, CombatFx, Confetti, ...
+        store/              -- Same zustand store, selectors, actions/ as client
+        hooks/              -- useBattleSlotHandlers, useBackHandler, useRecordOutcome
+        lib/
+          storage.ts        -- AsyncStorage wrapper with sync-read cache
+          identity.ts       -- UUID identity via AsyncStorage
+          settings.ts       -- Haptics toggle, server URL override
+          stats.ts          -- Persistent win/loss record
+          session.ts        -- In-progress game save/restore
+          decks.ts          -- Persist p1/p2 deck between launches
+          sounds.ts         -- Haptic feedback (expo-haptics)
+          firstTime.ts      -- Tutorial-seen flags
+          deckBuilder.ts    -- buildRandomDeck()
+          colors.ts         -- Hex color map
+          effects.ts        -- effectLabel()
+      android/              -- Generated native project (gitignored — regenerated via `expo prebuild`)
 ```
 
 ### Package Dependencies
@@ -242,18 +284,17 @@ cards/
 The packages depend on each other in a chain:
 
 ```
-shared  <--  card-engine  <--  battle-engine  <--  server
-                                                      |
-shared  <--  card-engine  <--  battle-engine  <--  client
-                                                      |
-shared  <----------------------------------------------
+shared  ←  card-engine  ←  battle-engine  ←  server
+                                          ←  client   (web)
+                                          ←  mobile   (Android)
 ```
 
 - `shared` depends on nothing. Every other package depends on it.
 - `card-engine` depends on `shared` (it needs the type definitions).
 - `battle-engine` depends on `shared` and `card-engine` (it uses the damage formula and types).
-- `server` depends on `shared`, `card-engine`, and `battle-engine` (it runs game logic server-side).
-- `client` depends on `shared`, `card-engine`, and `battle-engine` (it runs game logic for local mode and renders cards).
+- `server` depends on `shared`, `card-engine`, and `battle-engine` (runs game logic server-side).
+- `client` depends on `shared`, `card-engine`, and `battle-engine` (runs game logic for local/AI mode + renders cards on the web).
+- `mobile` depends on `shared`, `card-engine`, and `battle-engine` (same responsibilities as `client`, but for React Native).
 
 In each `package.json`, these dependencies are listed with `"workspace:*"`, which tells pnpm to link to the local package folder rather than downloading from npm.
 
@@ -285,7 +326,7 @@ From the root of the project, run:
 pnpm install
 ```
 
-This installs dependencies for every package (shared, card-engine, battle-engine, server, client) in one command. It also links the workspace packages together.
+This installs dependencies for every package (shared, card-engine, battle-engine, server, client, mobile) in one command. It also links the workspace packages together.
 
 ### Step 3: Build everything
 
@@ -321,6 +362,14 @@ This starts Vite on `http://localhost:5173`. Open that URL in your browser.
 
 If you only want local mode (two players on one screen), you do not need the server running.
 
+**Mobile (Android) — optional:**
+
+```bash
+pnpm --filter @cards/mobile start
+```
+
+Scan the QR code with **Expo Go** on your Android phone (same Wi-Fi as your laptop). The app loads over LAN. For a real APK install see [packages/mobile/README.md](./packages/mobile/README.md). For the Play Store release flow see [packages/mobile/release/README.md](./packages/mobile/release/README.md).
+
 ### Step 5: Run tests
 
 ```bash
@@ -328,6 +377,36 @@ pnpm test
 ```
 
 This runs tests across all packages. Currently, `card-engine` and `battle-engine` have tests using Vitest.
+
+### Makefile
+
+The root `Makefile` provides shortcuts for common workflows. Run `make help` to see all targets:
+
+**Local development:**
+
+| Target | What it does |
+|---|---|
+| `make libs` | Build shared packages (shared, card-engine, battle-engine) |
+| `make apk` | Build a debug APK (builds libs first) |
+| `make install` | Build APK and install to a connected Android device via adb |
+| `make dev` | Start all dev servers (turbo) |
+| `make dev-client` | Start the web client dev server only |
+| `make dev-server` | Start the game server in watch mode only |
+| `make dev-mobile` | Start the Expo/Metro dev server only |
+| `make test` | Run all tests |
+| `make typecheck` | Typecheck all packages |
+| `make clean-apk` | Clean Android build artifacts |
+
+**Droplet deploy** (run from the repo clone on the droplet):
+
+| Target | What it does |
+|---|---|
+| `make deploy` | Pull, rebuild both Docker images, restart the stack |
+| `make build` | Build server + client Docker images |
+| `make up` / `make down` | Start / stop containers |
+| `make logs` | Tail container logs |
+| `make ps` | List running containers |
+| `make prune` | Remove dangling Docker resources |
 
 ### If Something Goes Wrong
 

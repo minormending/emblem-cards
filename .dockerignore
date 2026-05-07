@@ -4,6 +4,7 @@
 **/.turbo
 **/.vite
 **/coverage
+**/*.tsbuildinfo
 **/.DS_Store
 .git
 .github
@@ -12,3 +13,8 @@
 *.log
 deploy
 docs
+# Keep any ambient .env* files out of the build context so they can never be
+# baked into an image layer or the build cache.
+**/.env
+**/.env.*
+!**/.env.example
