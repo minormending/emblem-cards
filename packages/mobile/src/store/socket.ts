@@ -30,7 +30,15 @@ export function getSocket(): GameSocket {
     socket = io(url, {
       autoConnect: false,
       path: process.env.EXPO_PUBLIC_SOCKET_PATH || '/socket.io/',
-      transports: ['websocket'],
+      // websocket first for low latency, polling as a fallback. Some
+      // mobile carriers + corporate proxies block WebSocket upgrades —
+      // without polling the user just sees an indefinite spinner. Same
+      // resilience fix the web client got (audit L1).
+      transports: ['websocket', 'polling'],
+      // Bound the per-attempt window so connect_error fires in
+      // gameStore's connectAndRun instead of hanging forever (audit L2).
+      timeout: 10_000,
+      reconnectionAttempts: 5,
     });
   }
   return socket;

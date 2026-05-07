@@ -55,6 +55,30 @@ export default function App() {
       ? new Set<string>([...STARTER_POOL, ...unlockedCards])
       : undefined;
 
+  // Audit H3 parity: if a stale persisted screen value somehow lands
+  // (older app version, corrupt AsyncStorage), the inline
+  // `screen === 'X' &&` chain below would render nothing — a permanent
+  // black screen. Detect after hydration and reset to menu.
+  useEffect(() => {
+    const knownScreens = [
+      'menu',
+      'mode-select',
+      'deck-builder',
+      'matchmaking',
+      'battle',
+      'tournament-home',
+      'tournament-pre-match',
+      'tournament-reward',
+      'tournament-loss',
+    ] as const;
+    if (hydrated && !knownScreens.includes(screen as typeof knownScreens[number])) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('Unknown screen value, resetting to menu:', screen);
+      }
+      useGameStore.getState().setScreen('menu');
+    }
+  }, [hydrated, screen]);
+
   if (!hydrated) {
     return (
       <View style={styles.loading}>
