@@ -40,6 +40,14 @@ else
   echo "signing props already present in $GRADLE_PROPS"
 fi
 
+# 1a. Drop x86/x86_64 ABIs from build (audit M8). Saves build time and
+#     AAB upload size; Play Store delivers per-ABI server-side anyway.
+if grep -q "^reactNativeArchitectures=armeabi-v7a,arm64-v8a,x86,x86_64$" "$GRADLE_PROPS"; then
+  sed -i.bak -E 's/^reactNativeArchitectures=.*$/reactNativeArchitectures=armeabi-v7a,arm64-v8a/' "$GRADLE_PROPS"
+  rm -f "$GRADLE_PROPS.bak"
+  echo "dropped x86 ABIs from $GRADLE_PROPS"
+fi
+
 # 2. build.gradle — patch signingConfigs and buildTypes.release
 if ! grep -q "EMBLEM_CARDS_STORE_FILE" "$BUILD_GRADLE"; then
   # Use a Python script for the in-file patch — awk/sed is fragile on groovy.
@@ -76,6 +84,63 @@ print("patched build.gradle")
 PY
 else
   echo "build.gradle already patched"
+fi
+
+# 3. build.gradle — replace hardcoded versionCode/versionName with a
+#    JsonSlurper read of app.json. Mirrors the M6 fix in the audit:
+#    after prebuild regenerates build.gradle with literal version values,
+#    we restore the dynamic read so the next app.json bump auto-applies.
+if ! grep -q "JsonSlurper" "$BUILD_GRADLE"; then
+  python3 - "$BUILD_GRADLE" <<'PY'
+import re, sys
+path = sys.argv[1]
+src = open(path).read()
+
+# Replace the literal version block in defaultConfig with a JsonSlurper
+# read placed just above defaultConfig. The regex matches the typical
+# expo prebuild output:
+#   versionCode 7
+#   versionName "1.0.6"
+slurper = """\
+    // Read version from app.json so we can't drift between the JS-side
+    // source of truth and the Android build (audit M6).
+    def appJson = new groovy.json.JsonSlurper().parseText(
+        file('../../app.json').getText('UTF-8')
+    )
+    def appVersion = appJson.expo.version as String
+    def appVersionCode = appJson.expo.android.versionCode as Integer
+
+    defaultConfig {
+"""
+
+src, n = re.subn(
+    r"(\n\s*)defaultConfig \{",
+    "\n" + slurper,
+    src,
+    count=1,
+)
+if n != 1:
+    raise SystemExit("could not locate defaultConfig block")
+
+# Replace the literal versionCode/versionName lines.
+src = re.sub(
+    r"versionCode\s+\d+",
+    "versionCode appVersionCode",
+    src,
+    count=1,
+)
+src = re.sub(
+    r'versionName\s+"[^"]*"',
+    "versionName appVersion",
+    src,
+    count=1,
+)
+
+open(path, "w").write(src)
+print("patched build.gradle to read versions from app.json")
+PY
+else
+  echo "build.gradle already reads versions from app.json"
 fi
 
 echo "signing setup complete."

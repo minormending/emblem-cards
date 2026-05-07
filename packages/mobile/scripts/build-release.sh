@@ -96,11 +96,11 @@ if [ "$CLEAN_PREBUILD" = "1" ]; then
   echo "→ regenerating android/ via expo prebuild --clean"
   npx expo prebuild --platform android --clean >/dev/null
   ./scripts/setup-signing.sh >/dev/null
-else
-  # Ensure versionName in the existing gradle file matches app.json.
-  sed -i.bak -E "s/versionName \"[^\"]*\"/versionName \"$VERSION\"/; s/versionCode [0-9]+/versionCode $VERSION_CODE/" android/app/build.gradle
-  rm -f android/app/build.gradle.bak
 fi
+# Note: build.gradle reads versionCode/versionName from app.json directly
+# (see packages/mobile/android/app/build.gradle), so we don't need to
+# sed-patch it here. expo prebuild --clean above will regenerate that
+# block, but our setup-signing.sh restores the app.json read.
 
 # ── Bundle JS into android/app/src/main/assets/ ──
 echo "→ bundling JS (Metro)"

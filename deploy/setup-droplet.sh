@@ -90,13 +90,30 @@ for net in gateway_emblem gateway_dcc gateway_calcuken gateway_nyc gateway_auth;
   su - "$DEPLOY_USER" -c "docker network inspect $net >/dev/null 2>&1 || docker network create $net"
 done
 
+# ── Caddy data backup ──
+# Drop the backup script into /opt/apps/_gateway/ alongside the compose
+# file, and schedule it via the deploy user's crontab. Idempotent — adds
+# the cron line only if it isn't already there.
+BACKUP_DEST="/home/$DEPLOY_USER/caddy-backups"
+install -d -m 700 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$BACKUP_DEST"
+CRON_LINE="0 4 * * * /opt/apps/_gateway/backup-caddy.sh $BACKUP_DEST >> $BACKUP_DEST/.cron.log 2>&1"
+if ! su - "$DEPLOY_USER" -c "crontab -l 2>/dev/null | grep -F backup-caddy.sh" >/dev/null 2>&1; then
+  su - "$DEPLOY_USER" -c "(crontab -l 2>/dev/null; echo '$CRON_LINE') | crontab -"
+  echo "Installed daily Caddy backup cron (04:00 UTC → $BACKUP_DEST)"
+else
+  echo "Caddy backup cron already installed"
+fi
+
 echo
 echo "── done ──"
-echo "Deploy user:  $DEPLOY_USER"
-echo "Apps dir:     $APPS_DIR"
-echo "App networks: gateway_emblem, gateway_dcc, gateway_calcuken, gateway_nyc, gateway_auth"
+echo "Deploy user:    $DEPLOY_USER"
+echo "Apps dir:       $APPS_DIR"
+echo "App networks:   gateway_emblem, gateway_dcc, gateway_calcuken, gateway_nyc, gateway_auth"
+echo "Backup dest:    $BACKUP_DEST (daily 04:00 UTC)"
 echo
 echo "Next: scp _gateway/ and emblem/ files from deploy/ into $APPS_DIR/, then"
-echo "  docker login ghcr.io   # with read:packages PAT"
+echo "  docker login ghcr.io                  # with read:packages PAT"
 echo "  cd $APPS_DIR/_gateway && docker compose up -d"
 echo "  cd $APPS_DIR/emblem   && docker compose up -d"
+echo
+echo "  scp deploy/backup-caddy.sh deploy@<host>:$APPS_DIR/_gateway/   # if not already present"

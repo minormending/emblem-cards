@@ -72,7 +72,7 @@ help:
 	@echo ""
 	@echo "  Droplet deploy"
 	@echo "  ──────────────"
-	@echo "  make deploy        - pull, rebuild both images, restart emblem stack"
+	@echo "  make deploy        - pull, rebuild both images, restart, prune dangling images"
 	@echo "  make pull          - git pull from current branch"
 	@echo "  make build         - build both images (slow, ~5-10 min each)"
 	@echo "  make build-server  - build only the server image"
@@ -85,7 +85,7 @@ help:
 	@echo "  make prune         - remove dangling images/containers/networks"
 	@echo ""
 
-deploy: pull build restart
+deploy: pull build restart prune
 	@echo "── deploy complete. hard-refresh browsers to pick up client changes. ──"
 
 pull:
