@@ -26,6 +26,7 @@ services:
     networks:
       - emblem
       - calcuken
+      - nailsalon
       - dcc
       - nyc
       - auth
@@ -65,6 +66,9 @@ networks:
     external: true
   calcuken:
     name: gateway_calcuken
+    external: true
+  nailsalon:
+    name: gateway_nailsalon
     external: true
   dcc:
     name: gateway_dcc

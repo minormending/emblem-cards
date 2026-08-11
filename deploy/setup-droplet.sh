@@ -77,7 +77,7 @@ install -d -m 750 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$APPS_DIR"
 # Slot dirs for every app the gateway routes to. Add an app by appending a
 # directory here AND adding the matching network to the loop below AND adding
 # the network to deploy/gateway/docker-compose.yml's `networks:` list.
-for app in _gateway emblem dcc calcuken nyc-lyfe auth; do
+for app in _gateway emblem dcc calcuken nail-salon nyc-lyfe auth; do
   install -d -m 750 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$APPS_DIR/$app"
 done
 
@@ -86,7 +86,7 @@ done
 # movement between apps (a compromise of `dcc-web` cannot reach
 # `emblem-server` because they sit on different networks). Keep this list
 # in sync with deploy/gateway/docker-compose.yml's external network names.
-for net in gateway_emblem gateway_dcc gateway_calcuken gateway_nyc gateway_auth; do
+for net in gateway_emblem gateway_dcc gateway_calcuken gateway_nailsalon gateway_nyc gateway_auth; do
   su - "$DEPLOY_USER" -c "docker network inspect $net >/dev/null 2>&1 || docker network create $net"
 done
 
@@ -108,7 +108,7 @@ echo
 echo "── done ──"
 echo "Deploy user:    $DEPLOY_USER"
 echo "Apps dir:       $APPS_DIR"
-echo "App networks:   gateway_emblem, gateway_dcc, gateway_calcuken, gateway_nyc, gateway_auth"
+echo "App networks:   gateway_emblem, gateway_dcc, gateway_calcuken, gateway_nailsalon, gateway_nyc, gateway_auth"
 echo "Backup dest:    $BACKUP_DEST (daily 04:00 UTC)"
 echo
 echo "Next: scp _gateway/ and emblem/ files from deploy/ into $APPS_DIR/, then"
